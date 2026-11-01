@@ -263,7 +263,8 @@ tr.clickable:hover td { background: var(--surface-2); }
   <section style="display:flex;flex-direction:column;gap:12px">
     <div class="section-head">
       <h2>Flow map</h2>
-      <span class="hint">Steps run left to right in dependency order. Click a system to trace it, or a status above to filter.</span>
+      <span class="hint">Steps run left to right in dependency order. Click a system to trace it, or a status above to filter. Click the background or press Esc to clear.</span>
+      <button class="btn primary" id="clearAll" type="button" hidden>Clear filters</button>
     </div>
     <div class="mapScroll"><div class="map" id="map"></div></div>
   </section>
@@ -543,6 +544,10 @@ tr.clickable:hover td { background: var(--surface-2); }
   function render() {
     const m = state.model; if (!m) return;
     renderSummary(m); renderMap(m); renderRank(m); renderTable(m); renderDefects(m);
+    const btn = document.getElementById("clearAll");
+    const parts = [state.focus && `System: ${state.focus}`, state.filter.size && `${state.filter.size} status`, (state.dStat.size || state.dCat.size) && "defect filter", state.focusFeat && `Feature: ${state.focusFeat}`].filter(Boolean);
+    btn.hidden = !parts.length;
+    btn.textContent = parts.length ? `Clear filters (${parts.join(" · ")}) ✕` : "";
   }
 
   function renderSummary(m) {
@@ -885,6 +890,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     const stage = e.target.closest("[data-stage]");
     if (stage) { const k = stage.dataset.stage; state.filter.has(k) ? state.filter.delete(k) : state.filter.add(k); render(); return; }
     if (e.target.closest("[data-clear]")) { state.filter.clear(); render(); return; }
+    if (e.target.closest("#clearAll")) { clearFilters(); return; }
     const dc = e.target.closest("[data-dcat]");
     if (dc) { const k = dc.dataset.dcat; state.dCat.has(k) ? state.dCat.delete(k) : state.dCat.add(k); render(); return; }
     const dsb = e.target.closest("[data-dstat]");
@@ -895,9 +901,18 @@ tr.clickable:hover td { background: var(--surface-2); }
     const fe = e.target.closest(".feat[data-feat]");
     if (fe && !e.target.closest("[data-sys]")) { const t = fe.dataset.feat; state.openFeat.has(t) ? state.openFeat.delete(t) : state.openFeat.add(t); state.focusFeat = state.focusFeat === t ? null : state.focusFeat; render(); return; }
     const sys = e.target.closest("[data-sys]");
-    if (sys) { const n = sys.dataset.sys; state.focus = state.focus === n ? null : n; render(); }
+    if (sys) { const n = sys.dataset.sys; state.focus = state.focus === n ? null : n; render(); return; }
+    // A click on empty page background (not on a card, row, control or text field) clears every active filter.
+    if (!e.target.closest(".card, .feat, tr, button, a, input, label, select, textarea, form, .chip, .banner")) clearFilters();
   });
+  function clearFilters() {
+    const active = state.filter.size || state.focus || state.dStat.size || state.dCat.size || state.focusFeat;
+    if (!active || !state.model) return;
+    state.filter.clear(); state.focus = null; state.dStat.clear(); state.dCat.clear(); state.focusFeat = null;
+    render();
+  }
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !e.target.closest?.("input, textarea")) { clearFilters(); return; }
     const row = e.target.closest && (e.target.closest("tr[data-sys]") || e.target.closest("tr[data-trace]") || e.target.closest(".feat[data-feat][tabindex]"));
     if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); row.click(); }
   });
