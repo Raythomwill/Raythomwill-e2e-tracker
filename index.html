@@ -33,6 +33,8 @@
   --d-closed: #17612c;
   --d-rej: #9a8f99;
   --on-solid: #ffffff;
+  --p-100: #23893f; --p-75: #2463c9; --p-50: #f2c94c; --p-25: #ee8a2a; --p-0: #d03a2f;
+  --p-100-ink: #1d7535; --p-75-ink: #2463c9; --p-50-ink: #9a7300; --p-25-ink: #b85f0c; --p-0-ink: #c0312a;
   --shadow: 0 1px 2px rgba(20,33,32,.06), 0 4px 14px rgba(20,33,32,.05);
   --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --f-body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -44,6 +46,8 @@
   --s-new: #7f898c; --s-started: #8fd0f5; --s-impl: #4f86ec; --s-test: #f0cd5a; --s-ok: #3fae5d;
   --s-new-ink: #a3adb0; --s-started-ink: #8fd0f5; --s-impl-ink: #82a9f5; --s-test-ink: #f5d978; --s-ok-ink: #5cc77a; --s-unknown: #44524f;
   --c-crit: #f0646a; --c-high: #f59a5e; --c-med: #b892ea; --c-low: #93b3c4; --d-closed: #2f9a52; --d-rej: #7a717b; --on-solid: #0d1514;
+  --p-100: #3fae5d; --p-75: #4f86ec; --p-50: #f0cd5a; --p-25: #f5a04f; --p-0: #f0645a;
+  --p-100-ink: #5cc77a; --p-75-ink: #82a9f5; --p-50-ink: #f5d978; --p-25-ink: #f8b06c; --p-0-ink: #f47a70;
   --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0d1514; --surface: #15201f; --surface-2: #1a2726; --ink: #e2ebe9; --muted: #92a4a1; --line: #2a3a38;
@@ -51,6 +55,8 @@
   --s-new: #7f898c; --s-started: #8fd0f5; --s-impl: #4f86ec; --s-test: #f0cd5a; --s-ok: #3fae5d;
   --s-new-ink: #a3adb0; --s-started-ink: #8fd0f5; --s-impl-ink: #82a9f5; --s-test-ink: #f5d978; --s-ok-ink: #5cc77a; --s-unknown: #44524f;
   --c-crit: #f0646a; --c-high: #f59a5e; --c-med: #b892ea; --c-low: #93b3c4; --d-closed: #2f9a52; --d-rej: #7a717b; --on-solid: #0d1514;
+  --p-100: #3fae5d; --p-75: #4f86ec; --p-50: #f0cd5a; --p-25: #f5a04f; --p-0: #f0645a;
+  --p-100-ink: #5cc77a; --p-75-ink: #82a9f5; --p-50-ink: #f5d978; --p-25-ink: #f8b06c; --p-0-ink: #f47a70;
   --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -532,6 +538,10 @@ tr.clickable:hover td { background: var(--surface-2); }
   function avg(feats) { return feats.length ? feats.reduce((s, f) => s + f.stage.score, 0) / feats.length : null; }
   function counts(feats) { const c = {}; for (const f of feats) c[f.stage.key] = (c[f.stage.key] || 0) + 1; return c; }
   const fmtPct = (v) => v == null ? "–" : Math.round(v) + "%";
+  // Progress colour bands: 100 green · 75–99 blue · 50–74 yellow · 25–49 orange · 0–24 red.
+  const pctBand = (v) => v == null ? null : v >= 100 ? "100" : v >= 75 ? "75" : v >= 50 ? "50" : v >= 25 ? "25" : "0";
+  const pctInk = (v) => { const b = pctBand(v); return b ? `color:var(--p-${b}-ink)` : "color:var(--muted)"; };
+  const pctFill = (v) => { const b = pctBand(v); return b ? `var(--p-${b})` : "var(--s-unknown)"; };
 
   // ---------- rendering ----------
   function stagesInUse() {
@@ -569,9 +579,9 @@ tr.clickable:hover td { background: var(--surface-2); }
     const okWithDefects = m.features.filter(f => f.stage.key === "ok" && f.defects.some(isActive)).length;
     $("summary").classList.toggle("has-d", m.hasDefects);
     $("summary").innerHTML = `
-      <div class="kpi"><span class="eyebrow">E2E readiness</span><span class="v${weakest && isBehind(weakest.progress) ? " bad" : ""}">${fmtPct(weakest?.progress)}</span>
+      <div class="kpi"><span class="eyebrow">E2E readiness</span><span class="v" style="${pctInk(weakest?.progress)}">${fmtPct(weakest?.progress)}</span>
         <span class="sub">${weakest ? `Limited by the weakest step: <b>${esc(weakest.name)}</b>` : "No scored steps"}</span></div>
-      <div class="kpi"><span class="eyebrow">Average progress</span><span class="v">${fmtPct(m.overall)}</span><span class="sub">Across ${total} feature${total === 1 ? "" : "s"}</span></div>
+      <div class="kpi"><span class="eyebrow">Average progress</span><span class="v" style="${pctInk(m.overall)}">${fmtPct(m.overall)}</span><span class="sub">Across ${total} feature${total === 1 ? "" : "s"}</span></div>
       <div class="kpi"><span class="eyebrow">Features OK</span><span class="v">${okCount}<span style="color:var(--muted);font-size:1rem"> / ${total}</span></span><span class="sub">${total - okCount} still open${okWithDefects ? ` · <span style="color:var(--warn)">${okWithDefects} OK with open defects</span>` : ""}</span></div>
       <div class="kpi"><span class="eyebrow">Steps behind</span><span class="v${behind.length ? " bad" : ""}">${behind.length}<span style="color:var(--muted);font-size:1rem"> / ${m.flows.length}</span></span>
         <span class="sub">${behind.length ? "Below the E2E average: " + behind.map(f => esc(f.name)).join(", ") : "All steps at or above average"}</span></div>
@@ -683,7 +693,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     return `<article data-node="${esc(f.name)}" class="card${behind ? " behind" : ""}${dim ? " dim" : ""}${focused ? " focus" : ""}">
       <div class="card-top">
         <div class="meta"><span class="eyebrow">Step ${d + 1}</span>${f.deps.length ? `<span>after ${f.deps.map(n => esc(n)).join(" + ")}</span>` : ""}${tag}</div>
-        <div class="card-title"><h3>${esc(f.name)}</h3><span class="pct" style="${behind ? "color:var(--warn)" : ""}">${fmtPct(f.progress)}</span></div>
+        <div class="card-title"><h3>${esc(f.name)}</h3><span class="pct" style="${pctInk(f.progress)}">${fmtPct(f.progress)}</span></div>
         <div class="bar">${segs}</div>
         <div class="systems">${f.systems.length ? f.systems.map(s => `<button type="button" class="sys" data-sys="${esc(s)}" aria-pressed="${state.focus === s}">${esc(s)}</button>`).join("") : `<span class="hint">No system mapped</span>`}</div>
       </div>
@@ -703,8 +713,8 @@ tr.clickable:hover td { background: var(--surface-2); }
       const why = (open.length ? `${open.length} of ${s.features.length} open${lowest ? ` · lowest: ${esc(lowest.title)} (${esc(lowest.statusRaw)})` : ""}` : "All features OK")
         + (sAct.length ? ` · <span style="color:${sWc.color};font-weight:600">${sAct.length} open defect${sAct.length === 1 ? "" : "s"} (worst ${esc(sWc.label)})</span>` : "");
       return `<li><span class="who">${esc(s.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem">· ${esc(s.flows.join(", "))}</span></span>
-        <span class="num" style="${bad ? "color:var(--warn);font-weight:600" : ""}">${fmtPct(s.progress)}</span>
-        <span class="track"><b class="${bad ? "bad" : ""}" style="width:${s.progress}%"></b><span class="avg" style="left:${avgPct}%"></span></span>
+        <span class="num" style="${pctInk(s.progress)};font-weight:600">${fmtPct(s.progress)}</span>
+        <span class="track"><b style="width:${s.progress}%;background:${pctFill(s.progress)}"></b><span class="avg" style="left:${avgPct}%"></span></span>
         <span class="why">${why}</span></li>`;
     }).join("") : `<li class="hint">Add a System sheet to rank systems.</li>`;
   }
@@ -717,7 +727,7 @@ tr.clickable:hover td { background: var(--surface-2); }
         <td style="white-space:nowrap"><b>${esc(s.name)}</b></td><td style="white-space:nowrap">${esc(s.flows.join(", "))}</td>
         ${st.map(x => `<td class="n${s.counts[x.key] ? "" : " zero"}">${s.counts[x.key] || 0}</td>`).join("")}
         ${m.hasDefects ? (() => { const a = s.defects.filter(isActive); const w = worstCat(a); return `<td class="n${a.length ? "" : " zero"}" style="${w ? `color:${w.color};font-weight:600` : ""}">${a.length}</td>`; })() : ""}
-        <td class="n" style="${isBehind(s.progress) ? "color:var(--warn);font-weight:600" : ""}">${fmtPct(s.progress)}</td>
+        <td class="n" style="${pctInk(s.progress)};font-weight:600">${fmtPct(s.progress)}</td>
         <td class="mini"><div class="bar" style="height:6px">${st.filter(x => s.counts[x.key]).map(x => `<span style="width:${(s.counts[x.key] / s.features.length) * 100}%;background:${x.color}"></span>`).join("")}</div></td>
       </tr>`).join("") : `<tr><td colspan="${st.length + 5}" class="hint">No System sheet found in the workbook.</td></tr>`}</tbody>`;
   }

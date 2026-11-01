@@ -31,6 +31,8 @@ Sheets are recognised by their header row, so sheet names don't matter.
 **Features**: New (grey) · Started (light blue) · Implemented (blue) · Testing (yellow) · OK (green).
 Score per feature: 0 / 25 / 50 / 75 / 100. A step's progress is the average of its features; E2E readiness is the lowest step.
 
+**Progress %**: 100% green · 75–99% blue · 50–74% yellow · 25–49% orange · 0–24% red.
+
 **Defect status**: New, Started, Implemented, Testing, OK, Closed, Rejected (same colours as features; Closed dark green, Rejected muted). Open = New, Started, Implemented, Testing.
 
 **Defect category**: Critical (red) · High (orange) · Medium (purple) · Low (slate). Read from the word, e.g. `2-High`.
