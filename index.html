@@ -161,6 +161,9 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .rank li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 10px; }
+.rank li[data-sys] { cursor: pointer; border-radius: 6px; padding: 5px 8px; margin: -5px -8px; }
+.rank li[data-sys]:hover { background: var(--surface-2); }
+.rank li.sel { background: var(--accent-soft); }
 .rank .who { font-weight: 600; overflow-wrap: anywhere; }
 .rank .why { grid-column: 1 / -1; font-size: .78rem; color: var(--muted); }
 .track { grid-column: 1 / -1; height: 6px; background: var(--surface-2); border-radius: 3px; position: relative; overflow: visible; }
@@ -173,6 +176,8 @@ th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spac
 td { padding: 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
 td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 tr.focus td { background: var(--accent-soft); }
+td.pick, th.pick { width: 28px; padding-right: 0; }
+td.pick input, th.pick input { accent-color: var(--accent); cursor: pointer; margin: 0; }
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--surface-2); }
 .zero { color: var(--line); }
@@ -281,7 +286,7 @@ tr.clickable:hover td { background: var(--surface-2); }
       <ol class="rank" id="rank"></ol>
     </div>
     <div class="panel">
-      <div class="section-head"><h2>Systems</h2><span class="hint">Feature count per status</span></div>
+      <div class="section-head"><h2>Systems</h2><span class="hint">Feature count per status · select one or more systems to highlight them</span></div>
       <div class="tableScroll"><table id="sysTable"></table></div>
     </div>
   </section>
@@ -359,7 +364,7 @@ tr.clickable:hover td { background: var(--surface-2); }
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  const state = { model: null, mode: "empty", filter: new Set(), focus: null, dStat: new Set(), dCat: new Set(), openFeat: new Set(), focusFeat: null, updatedAt: null, src: loadSrc(), loading: false };
+  const state = { model: null, mode: "empty", filter: new Set(), focus: new Set(), dStat: new Set(), dCat: new Set(), openFeat: new Set(), focusFeat: null, updatedAt: null, src: loadSrc(), loading: false };
   let mcp = null, unwatch = null, retried = false;
 
   function loadSrc() {
@@ -548,14 +553,14 @@ tr.clickable:hover td { background: var(--surface-2); }
     const used = new Set(state.model.features.map(f => f.stage.key));
     return [...STAGES, UNKNOWN].filter(s => s.key !== "unknown" || used.has("unknown"));
   }
-  const passes = (feat) => (!state.filter.size || state.filter.has(feat.stage.key)) && (!state.focus || !state.model.hasSysCol || feat.system === state.focus || !feat.system);
+  const passes = (feat) => (!state.filter.size || state.filter.has(feat.stage.key)) && (!state.focus.size || !state.model.hasSysCol || state.focus.has(feat.system) || !feat.system);
   const isBehind = (p) => p != null && state.model.overall != null && p < state.model.overall - 0.5;
 
   function render() {
     const m = state.model; if (!m) return;
     renderSummary(m); renderMap(m); renderRank(m); renderTable(m); renderDefects(m);
     const btn = document.getElementById("clearAll");
-    const parts = [state.focus && `System: ${state.focus}`, state.filter.size && `${state.filter.size} status`, (state.dStat.size || state.dCat.size) && "defect filter", state.focusFeat && `Feature: ${state.focusFeat}`].filter(Boolean);
+    const parts = [state.focus.size && (state.focus.size === 1 ? `System: ${[...state.focus][0]}` : `${state.focus.size} systems`), state.filter.size && `${state.filter.size} status`, (state.dStat.size || state.dCat.size) && "defect filter", state.focusFeat && `Feature: ${state.focusFeat}`].filter(Boolean);
     btn.hidden = !parts.length;
     btn.textContent = parts.length ? `Clear filters (${parts.join(" · ")}) ✕` : "";
   }
@@ -618,7 +623,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     const node = (name) => map.querySelector(`[data-node="${CSS.escape(name)}"]`);
     const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left - box.left, r: r.right - box.left, t: r.top - box.top, b: r.bottom - box.top, cx: r.left - box.left + r.width / 2, cy: r.top - box.top + r.height / 2 }; };
     const vertical = getComputedStyle(map).flexDirection === "column";
-    const focusFlows = new Set(state.focus ? m.flows.filter(f => f.systems.includes(state.focus)).map(f => f.name) : []);
+    const focusFlows = new Set(m.flows.filter(f => f.systems.some(x => state.focus.has(x))).map(f => f.name));
     const edges = [];
     for (const f of m.flows) {
       const srcs = f.deps.filter(n => m.flows.some(x => x.name === n));
@@ -668,8 +673,8 @@ tr.clickable:hover td { background: var(--surface-2); }
   if (window.ResizeObserver) new ResizeObserver(() => requestAnimationFrame(drawLinks)).observe(document.body);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => drawLinks());
   function card(f, d) {
-    const focused = state.focus && f.systems.includes(state.focus);
-    const dim = state.focus && !focused;
+    const focused = state.focus.size > 0 && f.systems.some(x => state.focus.has(x));
+    const dim = state.focus.size > 0 && !focused;
     const behind = isBehind(f.progress);
     const total = f.features.length;
     const segs = stagesInUse().filter(s => f.counts[s.key]).map(s => `<span style="width:${(f.counts[s.key] / total) * 100}%;background:${s.color}"></span>`).join("");
@@ -695,7 +700,7 @@ tr.clickable:hover td { background: var(--surface-2); }
         <div class="meta"><span class="eyebrow">Step ${d + 1}</span>${f.deps.length ? `<span>after ${f.deps.map(n => esc(n)).join(" + ")}</span>` : ""}${tag}</div>
         <div class="card-title"><h3>${esc(f.name)}</h3><span class="pct" style="${pctInk(f.progress)}">${fmtPct(f.progress)}</span></div>
         <div class="bar">${segs}</div>
-        <div class="systems">${f.systems.length ? f.systems.map(s => `<button type="button" class="sys" data-sys="${esc(s)}" aria-pressed="${state.focus === s}">${esc(s)}</button>`).join("") : `<span class="hint">No system mapped</span>`}</div>
+        <div class="systems">${f.systems.length ? f.systems.map(s => `<button type="button" class="sys" data-sys="${esc(s)}" aria-pressed="${state.focus.has(s)}">${esc(s)}</button>`).join("") : `<span class="hint">No system mapped</span>`}</div>
       </div>
       ${total ? `<ul class="feats">${feats}</ul>` : `<div class="empty-feats">No features on this step yet</div>`}
     </article>`;
@@ -712,7 +717,7 @@ tr.clickable:hover td { background: var(--surface-2); }
       const sWc = worstCat(sAct);
       const why = (open.length ? `${open.length} of ${s.features.length} open${lowest ? ` · lowest: ${esc(lowest.title)} (${esc(lowest.statusRaw)})` : ""}` : "All features OK")
         + (sAct.length ? ` · <span style="color:${sWc.color};font-weight:600">${sAct.length} open defect${sAct.length === 1 ? "" : "s"} (worst ${esc(sWc.label)})</span>` : "");
-      return `<li><span class="who">${esc(s.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem">· ${esc(s.flows.join(", "))}</span></span>
+      return `<li data-sys="${esc(s.name)}" class="${state.focus.has(s.name) ? "sel" : ""}" tabindex="0"><span class="who">${esc(s.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem">· ${esc(s.flows.join(", "))}</span></span>
         <span class="num" style="${pctInk(s.progress)};font-weight:600">${fmtPct(s.progress)}</span>
         <span class="track"><b style="width:${s.progress}%;background:${pctFill(s.progress)}"></b><span class="avg" style="left:${avgPct}%"></span></span>
         <span class="why">${why}</span></li>`;
@@ -722,14 +727,15 @@ tr.clickable:hover td { background: var(--surface-2); }
   function renderTable(m) {
     const st = stagesInUse();
     const rows = [...m.systems].sort((a, b) => a.depth - b.depth);
-    $("sysTable").innerHTML = `<thead><tr><th>System</th><th>Step</th>${st.map(s => `<th class="n" title="${esc(s.label)}">${esc(s.label)}</th>`).join("")}${m.hasDefects ? `<th class="n">Open defects</th>` : ""}<th class="n">Progress</th><th class="mini"></th></tr></thead>
-      <tbody>${rows.length ? rows.map(s => `<tr class="clickable${state.focus === s.name ? " focus" : ""}" data-sys="${esc(s.name)}" tabindex="0">
+    $("sysTable").innerHTML = `<thead><tr><th class="pick"><input type="checkbox" id="sysAll" aria-label="Select all systems" ${rows.length && rows.every(r => state.focus.has(r.name)) ? "checked" : ""}></th><th>System</th><th>Step</th>${st.map(s => `<th class="n" title="${esc(s.label)}">${esc(s.label)}</th>`).join("")}${m.hasDefects ? `<th class="n">Open defects</th>` : ""}<th class="n">Progress</th><th class="mini"></th></tr></thead>
+      <tbody>${rows.length ? rows.map(s => `<tr class="clickable${state.focus.has(s.name) ? " focus" : ""}" data-sys="${esc(s.name)}" tabindex="0" aria-selected="${state.focus.has(s.name)}">
+        <td class="pick"><input type="checkbox" tabindex="-1" aria-label="Select ${esc(s.name)}" ${state.focus.has(s.name) ? "checked" : ""}></td>
         <td style="white-space:nowrap"><b>${esc(s.name)}</b></td><td style="white-space:nowrap">${esc(s.flows.join(", "))}</td>
         ${st.map(x => `<td class="n${s.counts[x.key] ? "" : " zero"}">${s.counts[x.key] || 0}</td>`).join("")}
         ${m.hasDefects ? (() => { const a = s.defects.filter(isActive); const w = worstCat(a); return `<td class="n${a.length ? "" : " zero"}" style="${w ? `color:${w.color};font-weight:600` : ""}">${a.length}</td>`; })() : ""}
         <td class="n" style="${pctInk(s.progress)};font-weight:600">${fmtPct(s.progress)}</td>
         <td class="mini"><div class="bar" style="height:6px">${st.filter(x => s.counts[x.key]).map(x => `<span style="width:${(s.counts[x.key] / s.features.length) * 100}%;background:${x.color}"></span>`).join("")}</div></td>
-      </tr>`).join("") : `<tr><td colspan="${st.length + 5}" class="hint">No System sheet found in the workbook.</td></tr>`}</tbody>`;
+      </tr>`).join("") : `<tr><td colspan="${st.length + 6}" class="hint">No System sheet found in the workbook.</td></tr>`}</tbody>`;
   }
 
   function renderDefects(m) {
@@ -761,7 +767,7 @@ tr.clickable:hover td { background: var(--surface-2); }
         <td class="n" style="${act.some(d => d.cat.key === c.key) ? `color:${c.color};font-weight:700` : ""}">${act.filter(d => d.cat.key === c.key).length}</td></tr>`).join("")}</tbody>`;
 
     const order = { open: 0, retest: 1, resolved: 2, rejected: 3 };
-    const rows = ds.filter(d => (!state.dStat.size || state.dStat.has(d.stat.key)) && (!state.dCat.size || state.dCat.has(d.cat.key)))
+    const rows = ds.filter(d => (!state.dStat.size || state.dStat.has(d.stat.key)) && (!state.dCat.size || state.dCat.has(d.cat.key)) && (!state.focus.size || d.systems.some(x => state.focus.has(x))))
       .sort((a, b) => order[a.stat.group] - order[b.stat.group] || a.cat.rank - b.cat.rank || (a.flow?.depth ?? 99) - (b.flow?.depth ?? 99));
     $("dTable").innerHTML = `<thead><tr><th>Defect</th><th>Category</th><th>Status</th><th>Feature</th><th>Step</th><th>System</th></tr></thead>
       <tbody>${rows.length ? rows.map(d => `<tr class="${d.feature ? "clickable" : ""}${isActive(d) ? "" : " done"}${state.focusFeat && d.feature && state.focusFeat === d.feature.title ? " focus" : ""}" ${d.feature ? `data-trace="${esc(d.feature.title)}" tabindex="0"` : ""}>
@@ -773,7 +779,7 @@ tr.clickable:hover td { background: var(--surface-2); }
   }
 
   function traceTo(title) {
-    state.focusFeat = title; state.openFeat.add(title); state.focus = null;
+    state.focusFeat = title; state.openFeat.add(title); state.focus.clear();
     state.filter.clear();
     render();
     const el = document.querySelector(`.feat[data-feat="${CSS.escape(title)}"]`);
@@ -910,20 +916,21 @@ tr.clickable:hover td { background: var(--surface-2); }
     if (tr) { traceTo(tr.dataset.trace); return; }
     const fe = e.target.closest(".feat[data-feat]");
     if (fe && !e.target.closest("[data-sys]")) { const t = fe.dataset.feat; state.openFeat.has(t) ? state.openFeat.delete(t) : state.openFeat.add(t); state.focusFeat = state.focusFeat === t ? null : state.focusFeat; render(); return; }
+    if (e.target.id === "sysAll") { const all = state.model.systems.map(x => x.name); const on = all.every(n => state.focus.has(n)); state.focus = new Set(on ? [] : all); render(); return; }
     const sys = e.target.closest("[data-sys]");
-    if (sys) { const n = sys.dataset.sys; state.focus = state.focus === n ? null : n; render(); return; }
+    if (sys) { const n = sys.dataset.sys; state.focus.has(n) ? state.focus.delete(n) : state.focus.add(n); render(); return; }
     // A click on empty page background (not on a card, row, control or text field) clears every active filter.
     if (!e.target.closest(".card, .feat, tr, button, a, input, label, select, textarea, form, .chip, .banner")) clearFilters();
   });
   function clearFilters() {
-    const active = state.filter.size || state.focus || state.dStat.size || state.dCat.size || state.focusFeat;
+    const active = state.filter.size || state.focus.size || state.dStat.size || state.dCat.size || state.focusFeat;
     if (!active || !state.model) return;
-    state.filter.clear(); state.focus = null; state.dStat.clear(); state.dCat.clear(); state.focusFeat = null;
+    state.filter.clear(); state.focus.clear(); state.dStat.clear(); state.dCat.clear(); state.focusFeat = null;
     render();
   }
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !e.target.closest?.("input, textarea")) { clearFilters(); return; }
-    const row = e.target.closest && (e.target.closest("tr[data-sys]") || e.target.closest("tr[data-trace]") || e.target.closest(".feat[data-feat][tabindex]"));
+    const row = e.target.closest && (e.target.closest("tr[data-sys]") || e.target.closest("li[data-sys]") || e.target.closest("tr[data-trace]") || e.target.closest(".feat[data-feat][tabindex]"));
     if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); row.click(); }
   });
   $("refreshBtn").addEventListener("click", () => {
