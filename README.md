@@ -20,7 +20,9 @@ There are two files:
    - **Import Excel file**: load a whole .xlsx with the sheets below.
    - **Copy for Excel**: copy a table back into Excel.
 3. Edits show in the tracker at once and are kept in that browser until you save.
-4. Click **Save as HTML file**. The new file has your data inside; share that file by email, Teams or a file share.
+4. Click **Save**:
+   - **Chrome and Edge (desktop)**: the first time, pick the tracker file itself and confirm replacing it. After that, **Save** writes straight into the same file (the browser may ask "Allow editing?" once per visit). **Save a copy…** writes to a different file. In a synced OneDrive/SharePoint/Teams folder, the updated file syncs to everyone.
+   - **Other browsers** (Firefox, Safari): Save downloads a new copy with your data inside.
 
 ## Live data inside claude.ai
 
