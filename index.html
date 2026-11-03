@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<style>
+<style id="e2e-style">
 /* Layout: summary strip → E2E flow map (steps left→right in dependency order) → who's behind + system table. */
 :root {
   --bg: #eef2f2;
@@ -62,6 +62,30 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 .content { display: flex; flex-direction: column; gap: 22px; }
+.spacer { flex: 1 1 auto; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dtabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); width: 100%; }
+.dtab { border: 1px solid transparent; border-bottom: none; background: none; padding: 7px 14px; border-radius: 6px 6px 0 0; font-weight: 500; color: var(--muted); margin-bottom: -1px; }
+.dtab:hover { color: var(--ink); }
+.dtab[aria-selected="true"] { background: var(--surface); border-color: var(--line); color: var(--ink); font-weight: 600; }
+.dtab .num { font-size: .75rem; color: var(--muted); margin-left: 4px; }
+.etable td { padding: 2px 4px; border-bottom: 1px solid var(--surface-2); }
+.etable th { padding: 6px 10px; }
+.etable input, .etable select { width: 100%; min-width: 110px; border: 1px solid transparent; background: transparent; border-radius: 4px; padding: 6px 8px; }
+.etable input:hover, .etable select:hover { border-color: var(--line); }
+.etable input:focus, .etable select:focus { border-color: var(--accent); background: var(--surface); outline: none; }
+.etable input:disabled, .etable select:disabled { color: var(--ink); opacity: .85; }
+.etable .rowno { color: var(--muted); font-family: var(--f-mono); font-size: .75rem; width: 30px; text-align: right; padding-right: 8px; }
+.etable .act { width: 36px; }
+.delrow { border: none; background: none; color: var(--muted); font-size: 1.05rem; line-height: 1; padding: 4px 8px; border-radius: 4px; }
+.delrow:hover { color: var(--warn); background: var(--warn-soft); }
+.pastebox { display: flex; flex-direction: column; gap: 8px; }
+.pastebox textarea { width: 100%; min-height: 130px; font-family: var(--f-mono); font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); padding: 8px; color: var(--ink); }
+.note { font-size: .82rem; color: var(--muted); margin: 0; min-height: 1.2em; }
+.note.ok { color: var(--s-ok-ink); }
+.note.err { color: var(--warn); }
+.dot.local { background: var(--s-impl); }
+.dot.edited { background: var(--s-test); }
 .placeholder { background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 40px 20px; text-align: center; color: var(--muted); }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
@@ -245,8 +269,10 @@ tr.clickable:hover td { background: var(--surface-2); }
     <div class="source">
       <span class="dot" id="srcDot"></span>
       <span id="srcText">Connecting…</span>
-      <button class="btn" id="refreshBtn" type="button">Refresh</button>
-      <button class="btn" id="settingsBtn" type="button" aria-expanded="false">Change workbook</button>
+      <button class="btn" id="refreshBtn" type="button" hidden>Refresh</button>
+      <button class="btn" id="settingsBtn" type="button" aria-expanded="false" hidden>Change workbook</button>
+      <button class="btn" id="liveBtn" type="button" hidden>Use OneDrive</button>
+      <button class="btn primary" id="dataBtn" type="button" aria-expanded="false" aria-controls="dataSec">Edit data</button>
     </div>
   </header>
 
@@ -301,14 +327,63 @@ tr.clickable:hover td { background: var(--surface-2); }
     </div>
   </section>
   </div>
+
+  <section class="panel" id="dataSec" hidden>
+    <div class="section-head">
+      <h2>Data</h2>
+      <span class="hint" id="dataHint">The tracker's own tables. Edits show in the tracker straight away.</span>
+    </div>
+    <div class="banner" id="liveNote" hidden>
+      <p>You're viewing live data from OneDrive, which can't be edited here. Copy it into the built-in tables to edit it and save it as a file.</p>
+      <button class="btn primary" id="copyLiveBtn" type="button">Copy OneDrive data and edit</button>
+    </div>
+    <div class="toolbar">
+      <div class="dtabs" role="tablist" id="dTabs"></div>
+    </div>
+    <div class="tableScroll"><table class="etable" id="eTable"></table></div>
+    <div class="toolbar" id="eTools">
+      <button class="btn" type="button" id="addRowBtn">+ Add row</button>
+      <button class="btn" type="button" id="pasteBtn" aria-expanded="false">Paste from Excel</button>
+      <button class="btn" type="button" id="copyBtn">Copy for Excel</button>
+      <button class="btn" type="button" id="importBtn">Import Excel file</button>
+      <input type="file" id="importFile" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="resetBtn">Discard edits</button>
+      <button class="btn primary" type="button" id="saveBtn">Save as HTML file</button>
+    </div>
+    <div class="pastebox" id="pasteBox" hidden>
+      <label for="pasteArea" class="note">Copy rows in Excel (with or without the header row) and paste them here.</label>
+      <textarea id="pasteArea" spellcheck="false" placeholder="Paste rows here"></textarea>
+      <div class="toolbar">
+        <button class="btn primary" type="button" id="pasteReplace">Replace rows</button>
+        <button class="btn" type="button" id="pasteAppend">Add to existing rows</button>
+        <button class="btn" type="button" id="pasteCancel">Cancel</button>
+      </div>
+    </div>
+    <p class="note" id="eNote" role="status"></p>
+    <div id="eLists" hidden></div>
+  </section>
 </div>
 
-<script>
+<!-- Built-in data: the tracker's own tables. Edited in the page and written back by "Save as HTML file". -->
+<script type="application/json" id="e2e-data">{"savedAt":"2026-11-03T12:00:00.000Z","sheets":{"system":[["Title","Flow"],["System 1","Flow 1"],["System 2","Flow 2"],["System 3","Flow 3"],["System 4","Flow 4"],["System 5","Flow 5"]],"flow":[["Title","Dependant"],["Flow 1","Start"],["Flow 2","Flow 1, Flow 4"],["Flow 3","Flow 2, Flow 5"],["Flow 4","Start"],["Flow 5","Flow 2"]],"feature":[["Title","Flow","Status"],["Feature 1","Flow 1","OK"],["Feature 2","Flow 1","OK"],["Feature 3","Flow 2","OK"],["Feature 4","Flow 2","Testing"],["Feature 5","Flow 3","Implemented"],["Feature 6","Flow 3","Testing"],["Feature 7","Flow 3","New"],["Feature 8","Flow 3","New"],["Feature 9","Flow 1","Implemented"],["Feature 10","Flow 1","Testing"],["Feature 11","Flow 4","New"],["Feature 12","Flow 5","OK"],["Feature 13","Flow 5","New"]],"defects":[["Title","Feature","Category","Status"],["Defect 1","Feature 1","4-Low","Closed"],["Defect 2","Feature 1","3-Medium","Closed"],["Defect 3","Feature 1","3-Medium","Rejected"],["Defect 4","Feature 1","2-High","Closed"],["Defect 5","Feature 6","4-Low","New"],["Defect 6","Feature 6","3-Medium","Closed"],["Defect 7","Feature 6","3-Medium","Closed"],["Defect 8","Feature 4","2-High","OK"],["Defect 9","Feature 4","2-High","Testing"],["Defect 10","Feature 10","1-Critical","Implemented"]]}}</script>
+
+<script id="e2e-app">
 (() => {
   const SERVER = "Microsoft 365";
   const TOOL = "read_resource";
   const DEFAULT_SRC = { driveId: "267E4B7D2ECAE911", itemId: "267E4B7D2ECAE911!s25619702286d4c55a8bc9c402a1402f5" };
   const STORE_KEY = "e2e-flow-src";
+  const LOCAL_KEY = "e2e-local-data";
+  const MODE_KEY = "e2e-source";
+  // Captured before anything renders, so "Save as HTML file" can rebuild a clean copy of this page.
+  const PRISTINE_WRAP = document.querySelector(".wrap").outerHTML;
+  const SHEET_DEFS = [
+    { key: "system", label: "Systems", head: ["Title", "Flow"] },
+    { key: "flow", label: "Flows", head: ["Title", "Dependant"] },
+    { key: "feature", label: "Features", head: ["Title", "Flow", "Status"] },
+    { key: "defects", label: "Defects", head: ["Title", "Feature", "Category", "Status"] },
+  ];
 
   const STAGES = [
     { key: "new", label: "New", score: 0, color: "var(--s-new)", ink: "var(--s-new-ink)" },
@@ -366,6 +441,38 @@ tr.clickable:hover td { background: var(--surface-2); }
 
   const state = { model: null, mode: "empty", filter: new Set(), focus: new Set(), dStat: new Set(), dCat: new Set(), openFeat: new Set(), focusFeat: null, updatedAt: null, src: loadSrc(), loading: false };
   let mcp = null, unwatch = null, retried = false;
+  state.dataMode = "local";          // "live" (OneDrive through claude.ai) or "local" (built-in tables)
+  state.liveSheets = null;
+  state.tab = "feature";
+  state.local = loadLocal();
+  function readEmbedded() {
+    try { const d = JSON.parse(document.getElementById("e2e-data").textContent); return { savedAt: d.savedAt || "", sheets: normalizeSheets(d.sheets || {}) }; }
+    catch (e) { return { savedAt: "", sheets: normalizeSheets({}) }; }
+  }
+  function normalizeSheets(src) {
+    const out = {};
+    for (const def of SHEET_DEFS) {
+      const rows = Array.isArray(src[def.key]) ? src[def.key].map(r => (Array.isArray(r) ? r : []).map(c => c == null ? "" : String(c))) : [];
+      const head = rows.length && rows[0].some(c => c) ? rows[0] : def.head.slice();
+      out[def.key] = [head, ...rows.slice(1).map(r => head.map((_, i) => r[i] ?? ""))];
+    }
+    return out;
+  }
+  function loadLocal() {
+    const emb = readEmbedded();
+    try {
+      const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null");
+      // Browser edits apply only to the copy of the file they were made in.
+      if (saved && saved.base === emb.savedAt && saved.sheets) return { savedAt: emb.savedAt, sheets: normalizeSheets(saved.sheets), edited: true, editedAt: saved.at };
+    } catch (e) {}
+    return { savedAt: emb.savedAt, sheets: emb.sheets, edited: false };
+  }
+  function persistLocal() {
+    state.local.edited = true; state.local.editedAt = Date.now();
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ base: state.local.savedAt, at: state.local.editedAt, sheets: state.local.sheets })); } catch (e) {}
+  }
+  const getMode = () => { try { return localStorage.getItem(MODE_KEY) || ""; } catch (e) { return ""; } };
+  const setMode = (m) => { try { localStorage.setItem(MODE_KEY, m); } catch (e) {} };
 
   function loadSrc() {
     try { const v = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (v && v.driveId && v.itemId) return v; } catch (e) {}
@@ -806,25 +913,56 @@ tr.clickable:hover td { background: var(--surface-2); }
     btn.onclick = opts.onAction || null;
   }
 
+  // OneDrive could not be read: fall back to the built-in tables and say why.
   function showExample(reasonHtml, opts) {
-    state.mode = "empty";
-    state.model = null;
     if (unwatch && opts && opts.error) { unwatch(); unwatch = null; }
-    $("title").textContent = "E2E Tracker";
-    $("content").hidden = true;
-    $("placeholder").hidden = false;
-    $("placeholder").textContent = "Your workbook isn't loaded yet.";
-    setSource("empty", "Not loaded");
-    banner(reasonHtml, opts);
+    useLocal();
+    banner(`${reasonHtml} Showing the built-in data instead.`, opts);
+  }
+
+  function applySheets(sheets) {
+    try { state.model = buildModel(sheets); }
+    catch (e) {
+      state.model = null;
+      $("content").hidden = true; $("placeholder").hidden = false;
+      $("placeholder").textContent = state.dataMode === "local" ? `Nothing to show yet: ${e.message.replace("The workbook has", "the data has")} Add rows under Edit data.` : e.message;
+      return false;
+    }
+    $("placeholder").hidden = true; $("content").hidden = false;
+    render();
+    return true;
+  }
+  function localLabel() {
+    if (state.local.edited) return "Built-in data · edited in this browser, not yet saved to the file";
+    const d = state.local.savedAt ? new Date(state.local.savedAt) : null;
+    return d && !isNaN(d) ? `Built-in data · saved ${d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })}` : "Built-in data";
+  }
+  function updateChrome() {
+    const live = state.dataMode === "live";
+    $("refreshBtn").hidden = !live;
+    $("settingsBtn").hidden = !mcp;
+    $("liveBtn").hidden = !mcp || live;
+    if (!live) { $("srcDot").className = "dot " + (state.local.edited ? "edited" : "local"); $("srcText").textContent = localLabel(); }
+    renderEditor();
+  }
+  function useLocal() {
+    state.dataMode = "local";
+    if (unwatch) { unwatch(); unwatch = null; }
+    banner(null);
+    applySheets(state.local.sheets);
+    updateChrome();
   }
 
   function applyResult(result) {
     let text = typeof result?.payload === "string" ? result.payload : null;
     if (!text && Array.isArray(result?.content)) text = result.content.filter(c => c.type === "text").map(c => c.text).join("\n");
     if (!text && result?.payload && typeof result.payload === "object") text = result.payload.text || result.payload.content || "";
+    if (state.dataMode !== "live") return false;
+    const sheets = parseWorkbookText(text || "");
     let model;
-    try { model = buildModel(parseWorkbookText(text || "")); }
+    try { model = buildModel(sheets); }
     catch (e) { showExample(`Your workbook loaded, but it could not be read as a flow: ${esc(e.message)}`, { error: true }); return false; }
+    state.liveSheets = normalizeSheets(sheets);
     state.model = model; state.mode = "live";
     $("placeholder").hidden = true;
     $("content").hidden = false;
@@ -833,6 +971,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     setSource("live", liveLabel());
     banner(null);
     render();
+    updateChrome();
     return true;
   }
 
@@ -871,7 +1010,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     if (unwatch) { unwatch(); unwatch = null; }
     try {
       unwatch = mcp.watchTool(SERVER, TOOL, { uri }, (ev) => {
-        if (uri !== uriOf(state.src)) return;
+        if (uri !== uriOf(state.src) || state.dataMode !== "live") return;
         if (ev.type === "data") applyResult(ev.result);
         else if (ev.type === "error") {
           const c = ev.error?.code;
@@ -884,6 +1023,7 @@ tr.clickable:hover td { background: var(--surface-2); }
 
   async function load({ fresh = false } = {}) {
     if (!mcp) return;
+    state.dataMode = "live"; updateChrome();
     if (state.loading) return;
     state.loading = true;
     const uri = uriOf(state.src);
@@ -897,9 +1037,195 @@ tr.clickable:hover td { background: var(--surface-2); }
       handleError(err);
     } finally {
       state.loading = false;
-      if (state.mode === "empty" && $("srcDot").classList.contains("loading")) setSource("empty", "Not loaded");
+      if (state.dataMode === "local") updateChrome();
     }
   }
+
+  // ---------- data editor ----------
+  const FEATURE_STATUSES = ["New", "Started", "Implemented", "Testing", "OK"];
+  const DEFECT_STATUSES = ["New", "Started", "Implemented", "Testing", "OK", "Closed", "Rejected"];
+  const CATEGORIES = ["1-Critical", "2-High", "3-Medium", "4-Low"];
+  function editorSheets() { return state.dataMode === "live" && state.liveSheets ? state.liveSheets : state.local.sheets; }
+  function note(text, kind) { const n = $("eNote"); n.textContent = text || ""; n.className = "note" + (kind ? " " + kind : ""); }
+
+  function cellControl(sheetKey, col, value, r, c, ro) {
+    const h = col.toLowerCase();
+    const attrs = `data-r="${r}" data-c="${c}" aria-label="${esc(col)} row ${r}"${ro ? " disabled" : ""}`;
+    if (h === "status" || h === "state" || h === "category" || h === "severity") {
+      const opts = h === "category" || h === "severity" ? CATEGORIES : sheetKey === "defects" ? DEFECT_STATUSES : FEATURE_STATUSES;
+      const list = opts.includes(value) || !value ? opts : [value, ...opts];
+      const tint = h === "category" || h === "severity" ? catOf(value).color : sheetKey === "defects" ? dstatOf(value).ink : stageOf(value).ink;
+      return `<select ${attrs} style="color:${tint};font-weight:600">${value ? "" : `<option value="" selected></option>`}${list.map(o => `<option${o === value ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    }
+    const dl = (h === "flow" || h === "flows") ? "dl-flows" : (h === "feature" || h === "features") ? "dl-features" : (h === "system") ? "dl-systems" : "";
+    const ph = (h === "dependant" || h === "dependent" || h.startsWith("depend")) ? ' placeholder="Start, or flows separated by commas"' : "";
+    return `<input type="text" value="${esc(value)}" ${attrs}${dl ? ` list="${dl}"` : ""}${ph} autocomplete="off">`;
+  }
+
+  function renderEditor() {
+    const sec = $("dataSec");
+    $("dataBtn").setAttribute("aria-expanded", String(!sec.hidden));
+    if (sec.hidden) return;
+    const live = state.dataMode === "live";
+    const sheets = editorSheets();
+    $("liveNote").hidden = !live;
+    $("eTools").hidden = live;
+    $("pasteBox").hidden = live || $("pasteBox").hidden;
+    $("dTabs").innerHTML = SHEET_DEFS.map(d => `<button type="button" class="dtab" role="tab" data-tab="${d.key}" aria-selected="${state.tab === d.key}">${d.label}<span class="num">${Math.max(0, sheets[d.key].length - 1)}</span></button>`).join("");
+    const rows = sheets[state.tab];
+    const head = rows[0];
+    renderLists();
+    $("eTable").innerHTML = `<thead><tr><th class="rowno">#</th>${head.map(h => `<th>${esc(h)}</th>`).join("")}${live ? "" : `<th class="act"></th>`}</tr></thead>
+      <tbody>${rows.length > 1 ? rows.slice(1).map((r, i) => `<tr><td class="rowno">${i + 1}</td>${head.map((h, c) => `<td>${cellControl(state.tab, h, r[c] ?? "", i + 1, c, live)}</td>`).join("")}${live ? "" : `<td class="act"><button type="button" class="delrow" data-delrow="${i + 1}" aria-label="Delete row ${i + 1}" title="Delete row">✕</button></td>`}</tr>`).join("")
+        : `<tr><td colspan="${head.length + 2}" class="hint">No rows yet. Add a row or paste rows from Excel.</td></tr>`}</tbody>`;
+    $("resetBtn").hidden = !state.local.edited;
+  }
+
+  let rebuildTimer = null;
+  function localChanged({ editor = false, now = false } = {}) {
+    persistLocal();
+    const go = () => { applySheets(state.local.sheets); updateChromeLight(); if (editor) renderEditor(); };
+    clearTimeout(rebuildTimer);
+    if (now || editor) go(); else rebuildTimer = setTimeout(go, 350);
+  }
+  function updateChromeLight() {
+    $("srcDot").className = "dot " + (state.local.edited ? "edited" : "local"); $("srcText").textContent = localLabel();
+    $("resetBtn").hidden = !state.local.edited;
+    document.querySelectorAll("#dTabs .dtab").forEach(b => { const n = b.querySelector(".num"); if (n) n.textContent = Math.max(0, state.local.sheets[b.dataset.tab].length - 1); });
+  }
+
+  function parsePasted(text, head) {
+    const lines = text.replace(/\r/g, "").split("\n");
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    let rows = lines.filter(l => l.trim()).map(l => l.split("\t").map(c => c.trim().replace(/^"(.*)"$/s, "$1")));
+    if (rows.length && rows[0][0] && rows[0][0].toLowerCase() === String(head[0]).toLowerCase()) rows = rows.slice(1);
+    return rows.map(r => head.map((_, i) => r[i] ?? ""));
+  }
+  function toTsv(rows) { return rows.map(r => r.map(c => /[\t\n"]/.test(c) ? `"${String(c).replace(/"/g, '""')}"` : c).join("\t")).join("\n"); }
+
+  function loadSheetJs() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((res, rej) => {
+      const sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      sc.onload = () => window.XLSX ? res(window.XLSX) : rej(new Error("The Excel reader didn't load."));
+      sc.onerror = () => rej(new Error("The Excel reader couldn't be downloaded. Check your internet connection, or paste the rows instead."));
+      document.head.appendChild(sc);
+    });
+  }
+  async function importFile(file) {
+    note("Reading " + file.name + "…");
+    try {
+      const XLSX = await loadSheetJs();
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const found = {};
+      for (const name of wb.SheetNames) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: "" }).map(r => r.map(c => String(c).trim())).filter(r => r.some(c => c));
+        if (!rows.length) continue;
+        const byName = { system: "system", systems: "system", flow: "flow", flows: "flow", feature: "feature", features: "feature", defect: "defects", defects: "defects", bugs: "defects" }[name.trim().toLowerCase()];
+        const kind = byName || sheetKind(rows[0]);
+        if (kind && !found[kind]) found[kind] = rows;
+      }
+      const kinds = Object.keys(found);
+      if (!kinds.length) { note(`${file.name} has no System, Flow, Feature or Defects sheet.`, "err"); return; }
+      state.local.sheets = normalizeSheets({ ...state.local.sheets, ...found });
+      localChanged({ editor: true });
+      note(`Imported ${kinds.map(k => SHEET_DEFS.find(d => d.key === k).label).join(", ")} from ${file.name}.`, "ok");
+    } catch (e) { note(e.message || "That file couldn't be read.", "err"); }
+  }
+
+  function buildStandaloneHtml() {
+    const savedAt = new Date().toISOString();
+    const json = JSON.stringify({ savedAt, sheets: state.local.sheets }).replace(/</g, "\\u003c");
+    const links = [...document.querySelectorAll('link[href*="fonts.googleapis"], link[rel="preconnect"]')].map(l => l.outerHTML).join("\n");
+    const html = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n"
+      + "<title>E2E Tracker</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n" + links + "\n"
+      + "<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>\n"
+      + document.getElementById("e2e-style").outerHTML + "\n</head>\n<body>\n" + PRISTINE_WRAP + "\n\n"
+      + "<!-- Built-in data: the tracker's own tables. Edited in the page and written back by \"Save as HTML file\". -->\n"
+      + "<script type=\"application/json\" id=\"e2e-data\">" + json + "<\/script>\n\n"
+      + document.getElementById("e2e-app").outerHTML + "\n</body>\n</html>\n";
+    return { html, savedAt };
+  }
+  async function saveFile() {
+    const { html, savedAt } = buildStandaloneHtml();
+    const stamp = savedAt.slice(0, 10);
+    const filename = `E2E Tracker ${stamp}.html`;
+    const ns = window.claude && typeof window.claude.use === "function" ? await window.claude.use("downloads").catch(() => null) : null;
+    try {
+      if (ns) await ns.save({ filename, data: html });
+      else {
+        const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }
+      note(`Saved "${filename}" with your data inside. Share that file; it opens in any browser.`, "ok");
+    } catch (e) {
+      const c = e && e.code;
+      note(c === "declined" ? "Save cancelled." : c === "rate_limited" ? "A save is already waiting for your answer." : "This view can't save files. Open the tracker in a browser or on claude.ai to save it.", c === "declined" ? "" : "err");
+    }
+  }
+
+  $("dataBtn").addEventListener("click", () => { $("dataSec").hidden = !$("dataSec").hidden; renderEditor(); if (!$("dataSec").hidden) $("dataSec").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("liveBtn").addEventListener("click", () => { setMode("live"); retried = false; load({ fresh: true }); });
+  $("copyLiveBtn").addEventListener("click", () => {
+    if (state.liveSheets) { state.local.sheets = normalizeSheets(state.liveSheets); persistLocal(); }
+    setMode("local"); useLocal(); note("Copied the OneDrive data into the built-in tables. Edit away, then save it as a file.", "ok");
+  });
+  $("dataSec").addEventListener("click", (e) => {
+    const tab = e.target.closest("[data-tab]");
+    if (tab) { state.tab = tab.dataset.tab; $("pasteBox").hidden = true; renderEditor(); return; }
+    const del = e.target.closest("[data-delrow]");
+    if (del) { state.local.sheets[state.tab].splice(+del.dataset.delrow, 1); localChanged({ editor: true }); note("Row deleted."); return; }
+  });
+  $("dataSec").addEventListener("input", (e) => {
+    const el = e.target; if (!el.matches("[data-r]") || state.dataMode !== "local") return;
+    state.local.sheets[state.tab][+el.dataset.r][+el.dataset.c] = el.value;
+    if (el.tagName === "SELECT") { localChanged({ now: true }); const h = state.local.sheets[state.tab][0][+el.dataset.c].toLowerCase();
+      el.style.color = h === "category" || h === "severity" ? catOf(el.value).color : state.tab === "defects" ? dstatOf(el.value).ink : stageOf(el.value).ink; }
+    else localChanged();
+  });
+  // Suggestion lists for Flow / Feature / System cells; refreshed in place so typing is never interrupted.
+  function renderLists() {
+    const sheets = editorSheets();
+    const titles = (k) => [...new Set(sheets[k].slice(1).map(r => r[0]).filter(Boolean))];
+    $("eLists").innerHTML = ["flow", "feature", "system"].map(k => `<datalist id="dl-${k === "flow" ? "flows" : k === "feature" ? "features" : "systems"}">${titles(k).map(t => `<option value="${esc(t)}">`).join("")}</datalist>`).join("");
+  }
+  $("dataSec").addEventListener("change", (e) => { if (e.target.matches("input[data-r]")) renderLists(); });
+  $("addRowBtn").addEventListener("click", () => {
+    const rows = state.local.sheets[state.tab]; rows.push(rows[0].map(() => ""));
+    localChanged({ editor: true });
+    const el = document.querySelector(`#eTable [data-r="${rows.length - 1}"][data-c="0"]`); if (el) el.focus();
+  });
+  $("pasteBtn").addEventListener("click", () => { const b = $("pasteBox"); b.hidden = !b.hidden; $("pasteBtn").setAttribute("aria-expanded", String(!b.hidden)); if (!b.hidden) $("pasteArea").focus(); });
+  $("pasteCancel").addEventListener("click", () => { $("pasteBox").hidden = true; $("pasteArea").value = ""; $("pasteBtn").setAttribute("aria-expanded", "false"); });
+  const doPaste = (replace) => {
+    const rows = state.local.sheets[state.tab];
+    const got = parsePasted($("pasteArea").value, rows[0]);
+    if (!got.length) { note("There were no rows to paste.", "err"); return; }
+    state.local.sheets[state.tab] = replace ? [rows[0], ...got] : [...rows, ...got];
+    $("pasteArea").value = ""; $("pasteBox").hidden = true; $("pasteBtn").setAttribute("aria-expanded", "false");
+    localChanged({ editor: true });
+    note(`${replace ? "Replaced with" : "Added"} ${got.length} row${got.length === 1 ? "" : "s"}.`, "ok");
+  };
+  $("pasteReplace").addEventListener("click", () => doPaste(true));
+  $("pasteAppend").addEventListener("click", () => doPaste(false));
+  $("copyBtn").addEventListener("click", () => {
+    const tsv = toTsv(editorSheets()[state.tab]);
+    const fallback = () => { $("pasteBox").hidden = false; $("pasteArea").value = tsv; $("pasteArea").select(); note("Press Ctrl+C (Cmd+C on Mac) to copy the selected rows, then paste them into Excel."); };
+    try { navigator.clipboard.writeText(tsv).then(() => note("Copied. Paste into Excel to get the same table.", "ok"), fallback); } catch (e) { fallback(); }
+  });
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; if (f) importFile(f); e.target.value = ""; });
+  $("saveBtn").addEventListener("click", saveFile);
+  let resetArmed = false;
+  $("resetBtn").addEventListener("click", () => {
+    if (!resetArmed) { resetArmed = true; $("resetBtn").textContent = "Click again to discard"; setTimeout(() => { resetArmed = false; $("resetBtn").textContent = "Discard edits"; }, 4000); return; }
+    resetArmed = false; $("resetBtn").textContent = "Discard edits";
+    try { localStorage.removeItem(LOCAL_KEY); } catch (e) {}
+    const emb = readEmbedded(); state.local = { savedAt: emb.savedAt, sheets: emb.sheets, edited: false };
+    applySheets(state.local.sheets); updateChrome(); note("Edits discarded. Showing the data saved in the file.");
+  });
 
   // ---------- events ----------
   document.addEventListener("click", (e) => {
@@ -934,7 +1260,7 @@ tr.clickable:hover td { background: var(--surface-2); }
     if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); row.click(); }
   });
   $("refreshBtn").addEventListener("click", () => {
-    if (!mcp) { banner("This view can't reach your connectors. Open the page on claude.ai while signed in."); return; }
+    if (!mcp) return;
     retried = false; load({ fresh: true });
   });
   $("settingsBtn").addEventListener("click", () => {
@@ -954,12 +1280,15 @@ tr.clickable:hover td { background: var(--surface-2); }
   });
 
   // ---------- boot ----------
-  setSource("loading", "Connecting to OneDrive…");
+  // Show the built-in data at once; inside claude.ai, switch to live OneDrive data unless the viewer chose the built-in tables.
+  useLocal();
   const use = window.claude && typeof window.claude.use === "function" ? window.claude.use("mcp") : Promise.resolve(null);
   use.then((ns) => {
     mcp = ns;
-    if (!mcp) { showExample("This view can't reach your connectors. Open the page on claude.ai while signed in to load your workbook."); return; }
+    if (!mcp) { updateChrome(); return; }
+    if (getMode() === "local") { updateChrome(); return; }
+    setSource("loading", "Connecting to OneDrive…");
     load();
-  }).catch(() => showExample("This view can't reach your connectors. Open the page on claude.ai while signed in to load your workbook."));
+  }).catch(() => updateChrome());
 })();
 </script>

@@ -7,13 +7,24 @@ An interactive end-to-end test progress tracker for test managers. It reads a On
 - **Who is behind**: systems ranked by progress, with their open features and defects.
 - **Defects**: every defect traced to its feature, flow step and system, colour coded by status and category.
 
-The whole tool is a single file, `index.html`: HTML, CSS and JavaScript with no build step.
+There are two files:
 
-## How it gets data
+- **`E2E-Tracker.html`**: the shareable version. Open it in any browser; no Claude, OneDrive or internet needed (fonts and Excel import are the only online extras). The data is stored inside the file.
+- **`index.html`**: the same page as published on claude.ai, where it also reads the workbook live from OneDrive.
 
-The page is published as a claude.ai artifact and reads the workbook through the viewer's **Microsoft 365** connector (`read_resource`). It refreshes every minute while the page is visible. Opened outside claude.ai, it can't reach the connector and shows a message instead of data.
+## Using it without Claude or OneDrive
 
-Use **Change workbook** on the page to point it at another OneDrive Excel link.
+1. Open `E2E-Tracker.html` in a browser.
+2. Click **Edit data**. The four tables (Systems, Flows, Features, Defects) can be edited directly, with dropdowns for Status and Category.
+   - **Paste from Excel**: copy rows in Excel and paste them in (the header row is optional).
+   - **Import Excel file**: load a whole .xlsx with the sheets below.
+   - **Copy for Excel**: copy a table back into Excel.
+3. Edits show in the tracker at once and are kept in that browser until you save.
+4. Click **Save as HTML file**. The new file has your data inside; share that file by email, Teams or a file share.
+
+## Live data inside claude.ai
+
+Published as a claude.ai artifact, the page reads the workbook through the viewer's **Microsoft 365** connector (`read_resource`) and refreshes every minute while visible. **Change workbook** points it at another OneDrive Excel link. **Edit data → Copy OneDrive data and edit** switches to the built-in tables; **Use OneDrive** switches back. If OneDrive can't be read, the page shows the built-in data and says why.
 
 ## Workbook layout
 

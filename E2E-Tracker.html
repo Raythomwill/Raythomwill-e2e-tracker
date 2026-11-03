@@ -1,0 +1,1303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>E2E Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Public+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+<style id="e2e-style">
+/* Layout: summary strip → E2E flow map (steps left→right in dependency order) → who's behind + system table. */
+:root {
+  --bg: #eef2f2;
+  --surface: #ffffff;
+  --surface-2: #f6f9f9;
+  --ink: #142120;
+  --muted: #586a68;
+  --line: #d5dfde;
+  --accent: #0b6b66;
+  --accent-soft: #d8eeec;
+  --warn: #b8392a;
+  --warn-soft: #fbe5e1;
+  --s-new: #a3abae;
+  --s-started: #7cc4ec;
+  --s-impl: #2463c9;
+  --s-test: #f2c94c;
+  --s-ok: #23893f;
+  --s-new-ink: #5f6a6d;
+  --s-started-ink: #1f7fb3;
+  --s-impl-ink: #2463c9;
+  --s-test-ink: #9a7300;
+  --s-ok-ink: #1d7535;
+  --s-unknown: #c4cccb;
+  --c-crit: #b4232a;
+  --c-high: #e4602b;
+  --c-med: #8e5cc4;
+  --c-low: #6a8a9c;
+  --d-closed: #17612c;
+  --d-rej: #9a8f99;
+  --on-solid: #ffffff;
+  --p-100: #23893f; --p-75: #2463c9; --p-50: #f2c94c; --p-25: #ee8a2a; --p-0: #d03a2f;
+  --p-100-ink: #1d7535; --p-75-ink: #2463c9; --p-50-ink: #9a7300; --p-25-ink: #b85f0c; --p-0-ink: #c0312a;
+  --shadow: 0 1px 2px rgba(20,33,32,.06), 0 4px 14px rgba(20,33,32,.05);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1514; --surface: #15201f; --surface-2: #1a2726; --ink: #e2ebe9; --muted: #92a4a1; --line: #2a3a38;
+  --accent: #52c2b8; --accent-soft: #173a37; --warn: #f0806f; --warn-soft: #3d1f1a;
+  --s-new: #7f898c; --s-started: #8fd0f5; --s-impl: #4f86ec; --s-test: #f0cd5a; --s-ok: #3fae5d;
+  --s-new-ink: #a3adb0; --s-started-ink: #8fd0f5; --s-impl-ink: #82a9f5; --s-test-ink: #f5d978; --s-ok-ink: #5cc77a; --s-unknown: #44524f;
+  --c-crit: #f0646a; --c-high: #f59a5e; --c-med: #b892ea; --c-low: #93b3c4; --d-closed: #2f9a52; --d-rej: #7a717b; --on-solid: #0d1514;
+  --p-100: #3fae5d; --p-75: #4f86ec; --p-50: #f0cd5a; --p-25: #f5a04f; --p-0: #f0645a;
+  --p-100-ink: #5cc77a; --p-75-ink: #82a9f5; --p-50-ink: #f5d978; --p-25-ink: #f8b06c; --p-0-ink: #f47a70;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0d1514; --surface: #15201f; --surface-2: #1a2726; --ink: #e2ebe9; --muted: #92a4a1; --line: #2a3a38;
+  --accent: #52c2b8; --accent-soft: #173a37; --warn: #f0806f; --warn-soft: #3d1f1a;
+  --s-new: #7f898c; --s-started: #8fd0f5; --s-impl: #4f86ec; --s-test: #f0cd5a; --s-ok: #3fae5d;
+  --s-new-ink: #a3adb0; --s-started-ink: #8fd0f5; --s-impl-ink: #82a9f5; --s-test-ink: #f5d978; --s-ok-ink: #5cc77a; --s-unknown: #44524f;
+  --c-crit: #f0646a; --c-high: #f59a5e; --c-med: #b892ea; --c-low: #93b3c4; --d-closed: #2f9a52; --d-rej: #7a717b; --on-solid: #0d1514;
+  --p-100: #3fae5d; --p-75: #4f86ec; --p-50: #f0cd5a; --p-25: #f5a04f; --p-0: #f0645a;
+  --p-100-ink: #5cc77a; --p-75-ink: #82a9f5; --p-50-ink: #f5d978; --p-25-ink: #f8b06c; --p-0-ink: #f47a70;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.content { display: flex; flex-direction: column; gap: 22px; }
+.spacer { flex: 1 1 auto; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dtabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); width: 100%; }
+.dtab { border: 1px solid transparent; border-bottom: none; background: none; padding: 7px 14px; border-radius: 6px 6px 0 0; font-weight: 500; color: var(--muted); margin-bottom: -1px; }
+.dtab:hover { color: var(--ink); }
+.dtab[aria-selected="true"] { background: var(--surface); border-color: var(--line); color: var(--ink); font-weight: 600; }
+.dtab .num { font-size: .75rem; color: var(--muted); margin-left: 4px; }
+.etable td { padding: 2px 4px; border-bottom: 1px solid var(--surface-2); }
+.etable th { padding: 6px 10px; }
+.etable input, .etable select { width: 100%; min-width: 110px; border: 1px solid transparent; background: transparent; border-radius: 4px; padding: 6px 8px; }
+.etable input:hover, .etable select:hover { border-color: var(--line); }
+.etable input:focus, .etable select:focus { border-color: var(--accent); background: var(--surface); outline: none; }
+.etable input:disabled, .etable select:disabled { color: var(--ink); opacity: .85; }
+.etable .rowno { color: var(--muted); font-family: var(--f-mono); font-size: .75rem; width: 30px; text-align: right; padding-right: 8px; }
+.etable .act { width: 36px; }
+.delrow { border: none; background: none; color: var(--muted); font-size: 1.05rem; line-height: 1; padding: 4px 8px; border-radius: 4px; }
+.delrow:hover { color: var(--warn); background: var(--warn-soft); }
+.pastebox { display: flex; flex-direction: column; gap: 8px; }
+.pastebox textarea { width: 100%; min-height: 130px; font-family: var(--f-mono); font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); padding: 8px; color: var(--ink); }
+.note { font-size: .82rem; color: var(--muted); margin: 0; min-height: 1.2em; }
+.note.ok { color: var(--s-ok-ink); }
+.note.err { color: var(--warn); }
+.dot.local { background: var(--s-impl); }
+.dot.edited { background: var(--s-test); }
+.placeholder { background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 40px 20px; text-align: center; color: var(--muted); }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+h1, h2 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -.01em; }
+h1 { font-size: 1.75rem; font-weight: 700; }
+h2 { font-size: 1.12rem; font-weight: 600; }
+.eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.source { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--s-new); display: inline-block; }
+.dot.live { background: var(--s-ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-ok) 25%, transparent); }
+.dot.loading { background: var(--s-started); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 5px 11px; font-size: .82rem; font-weight: 500; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.primary:hover { color: var(--surface); filter: brightness(1.08); }
+
+.banner { border: 1px solid var(--line); border-left: 4px solid var(--s-started); background: var(--surface); border-radius: 6px;
+  padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.banner.err { border-left-color: var(--warn); }
+.banner p { margin: 0; max-width: 80ch; }
+.settings { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.settings .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.settings input { flex: 1 1 300px; min-width: 0; border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 7px 10px; }
+.settings small { color: var(--muted); }
+
+/* summary */
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.kpi { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kpi .v { font-family: var(--f-mono); font-size: 1.7rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kpi .v.bad { color: var(--warn); }
+.kpi .sub { font-size: .8rem; color: var(--muted); }
+.dist { grid-column: 1 / -1; background: var(--surface); padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); }
+.bar span { display: block; height: 100%; }
+.bar span + span { border-left: 2px solid var(--surface); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: .8rem; }
+.chip .sw { width: 9px; height: 9px; border-radius: 2px; }
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--surface-2); font-weight: 600; }
+.chip.off { opacity: .45; }
+.hint { font-size: .78rem; color: var(--muted); }
+
+/* flow map */
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.mapScroll { overflow-x: auto; padding-bottom: 6px; }
+.map { display: flex; align-items: stretch; gap: 0; min-width: min-content; position: relative; }
+.map > .col, .map > .start { position: relative; z-index: 1; }
+.gapc { flex: 0 0 56px; }
+.map { padding-top: 34px; }
+.links { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
+.links path.edge { fill: none; stroke: var(--muted); stroke-width: 1.6; opacity: .7; }
+.links path.edge.hot { stroke: var(--accent); stroke-width: 2.2; opacity: 1; }
+.links .head { fill: var(--muted); opacity: .7; }
+.links .head.hot { fill: var(--accent); opacity: 1; }
+.start { align-self: center; flex: 0 0 auto; font-family: var(--f-mono); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase;
+  border: 1.5px dashed var(--muted); color: var(--muted); border-radius: 999px; padding: 6px 12px; }
+.arrow { flex: 0 0 34px; align-self: center; height: 2px; background: var(--muted); position: relative; opacity: .6; }
+.arrow::after { content: ""; position: absolute; right: -1px; top: -4px; border-left: 7px solid var(--muted); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.col { flex: 0 0 300px; display: flex; flex-direction: column; gap: 26px; justify-content: center; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); display: flex; flex-direction: column; transition: opacity .15s, border-color .15s; }
+.card.behind { border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+.card.dim { opacity: .35; }
+.card.focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
+.card-top { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.card-title { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.card-title h3 { margin: 0; font-family: var(--f-display); font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.pct { font-family: var(--f-mono); font-weight: 600; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .78rem; color: var(--muted); }
+.tag { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; border-radius: 4px; padding: 2px 6px; }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.tag.good { background: var(--accent-soft); color: var(--accent); }
+.systems { display: flex; flex-wrap: wrap; gap: 5px; }
+.sys { border: 1px solid var(--line); background: var(--surface-2); border-radius: 4px; padding: 2px 8px; font-size: .78rem; font-weight: 500; }
+.sys:hover { border-color: var(--accent); }
+.sys[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.feats { list-style: none; margin: 0; padding: 4px 0; }
+.feat { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 10px; padding: 7px 14px; align-items: center; }
+.feat + .feat { border-top: 1px solid var(--surface-2); }
+.feat .name { overflow-wrap: anywhere; }
+.feat .st { font-size: .76rem; font-weight: 600; text-align: right; }
+.feat.dim { opacity: .3; }
+.ladder { grid-column: 1 / -1; display: flex; gap: 3px; }
+.ladder i { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--line); }
+.empty-feats { padding: 10px 14px; color: var(--muted); font-size: .82rem; }
+
+/* lower */
+.lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 22px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rank li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 10px; }
+.rank li[data-sys] { cursor: pointer; border-radius: 6px; padding: 5px 8px; margin: -5px -8px; }
+.rank li[data-sys]:hover { background: var(--surface-2); }
+.rank li.sel { background: var(--accent-soft); }
+.rank .who { font-weight: 600; overflow-wrap: anywhere; }
+.rank .why { grid-column: 1 / -1; font-size: .78rem; color: var(--muted); }
+.track { grid-column: 1 / -1; height: 6px; background: var(--surface-2); border-radius: 3px; position: relative; overflow: visible; }
+.track b { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.track b.bad { background: var(--warn); }
+.track .avg { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: .5; }
+.tableScroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .84rem; min-width: 560px; }
+th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
+td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+tr.focus td { background: var(--accent-soft); }
+td.pick, th.pick { width: 28px; padding-right: 0; }
+td.pick input, th.pick input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--surface-2); }
+.zero { color: var(--line); }
+.mini { width: 110px; }
+
+/* defects */
+.summary.has-d { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.dsqs { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; vertical-align: middle; }
+.dsq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; background: var(--c); }
+.dsq.done { opacity: .3; }
+.dsq.rej { background: transparent; border: 1.5px solid var(--c); opacity: .5; }
+.dcount { font-size: .74rem; font-weight: 600; margin-left: 4px; }
+.feat { cursor: pointer; }
+.feat:hover { background: var(--surface-2); }
+.feat.hl { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.feat .sub2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.flag { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--warn); }
+.dlist { grid-column: 1 / -1; list-style: none; margin: 4px 0 2px; padding: 6px 8px; background: var(--surface-2); border-radius: 6px; display: flex; flex-direction: column; gap: 5px; }
+.dlist li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .8rem; }
+.dlist .dt { flex: 1 1 auto; min-width: 0; }
+.cat { display: inline-block; background: var(--c); color: var(--on-solid); font-size: .68rem; font-weight: 700; letter-spacing: .03em; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.dst { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--c); color: var(--i); font-size: .72rem; font-weight: 600; padding: 0 7px; border-radius: 999px; white-space: nowrap; }
+.dst::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.struck { text-decoration: line-through; color: var(--muted); }
+.tag.dtag { background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--i); }
+.dkpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.dkpis .kpi .v { font-size: 1.4rem; }
+.dfilters { display: flex; flex-direction: column; gap: 8px; }
+.dfilters .legend { align-items: center; }
+.dfilters .lab { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; min-width: 70px; }
+.dgrid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; align-items: start; }
+#dMatrix { min-width: 0; }
+#dMatrix td.n.hit { font-weight: 600; }
+#dTable tr.done td { color: var(--muted); }
+.ftrace { display: flex; flex-direction: column; gap: 1px; }
+.ftrace small { color: var(--muted); }
+
+@media (max-width: 1100px) { .dgrid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) {
+  .summary, .summary.has-d { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .summary.has-d .kpi:nth-child(5) { grid-column: span 2; }
+  .dkpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .dkpis .kpi:nth-child(5) { grid-column: span 2; }
+  .lower { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 640px) {
+  .map { flex-direction: column; min-width: 0; }
+  .col { flex: 1 1 auto; }
+  .arrow { width: 2px; height: 26px; flex: 0 0 26px; }
+  .gapc { flex: 0 0 22px; }
+  .map > .col, .map > .start { margin-left: 22px; }
+  .arrow::after { right: -4px; top: auto; bottom: -1px; border-top: 7px solid var(--muted); border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 0; }
+  .start { align-self: flex-start; }
+  h1 { font-size: 1.45rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">End-to-end test progress</div>
+      <h1 id="title">E2E Tracker</h1>
+    </div>
+    <div class="source">
+      <span class="dot" id="srcDot"></span>
+      <span id="srcText">Connecting…</span>
+      <button class="btn" id="refreshBtn" type="button" hidden="">Refresh</button>
+      <button class="btn" id="settingsBtn" type="button" aria-expanded="false" hidden="">Change workbook</button>
+      <button class="btn" id="liveBtn" type="button" hidden="">Use OneDrive</button>
+      <button class="btn primary" id="dataBtn" type="button" aria-expanded="false" aria-controls="dataSec">Edit data</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden="">
+    <p id="bannerText"></p>
+    <button class="btn primary" id="bannerBtn" type="button" hidden=""></button>
+  </div>
+
+  <form class="settings" id="settings" hidden="">
+    <label for="wbInput"><strong>OneDrive workbook link</strong></label>
+    <div class="row">
+      <input id="wbInput" type="text" placeholder="Paste the Excel link from your browser address bar" autocomplete="off">
+      <button class="btn primary" type="submit">Load workbook</button>
+      <button class="btn" type="button" id="resetWb">Use default</button>
+    </div>
+    <small>The workbook needs a <b>Feature</b> sheet (Title, Flow, Status). <b>Flow</b> (Title, Dependant) sets the step order and <b>System</b> (Title, Flow) places systems on steps. An optional System column on Feature assigns features to a single system. <b>Defects</b> (Title, Feature, Category, Status) links each defect to a feature by its title.</small>
+    <small id="wbError" style="color:var(--warn)"></small>
+  </form>
+
+  <div class="placeholder" id="placeholder">Loading your workbook from OneDrive…</div>
+
+  <div class="content" id="content" hidden="">
+  <section class="summary" id="summary" aria-label="Summary"></section>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <div class="section-head">
+      <h2>Flow map</h2>
+      <span class="hint">Steps run left to right in dependency order. Click a system to trace it, or a status above to filter. Click the background or press Esc to clear.</span>
+      <button class="btn primary" id="clearAll" type="button" hidden="">Clear filters</button>
+    </div>
+    <div class="mapScroll"><div class="map" id="map"></div></div>
+  </section>
+
+  <section class="lower">
+    <div class="panel">
+      <div class="section-head"><h2>Who is behind</h2><span class="hint">Line = E2E average</span></div>
+      <ol class="rank" id="rank"></ol>
+    </div>
+    <div class="panel">
+      <div class="section-head"><h2>Systems</h2><span class="hint">Feature count per status · select one or more systems to highlight them</span></div>
+      <div class="tableScroll"><table id="sysTable"></table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="defectSec" hidden="">
+    <div class="section-head"><h2>Defects</h2><span class="hint">Each defect is traced to its feature, step and systems. Click a row to find the feature on the map.</span></div>
+    <div class="dkpis" id="dKpis"></div>
+    <div class="dfilters" id="dFilters"></div>
+    <div class="dgrid">
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:0"><span class="eyebrow">Category × status</span><div class="tableScroll"><table id="dMatrix"></table></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:0"><span class="eyebrow">Traceability</span><div class="tableScroll"><table id="dTable"></table></div></div>
+    </div>
+  </section>
+  </div>
+
+  <section class="panel" id="dataSec" hidden="">
+    <div class="section-head">
+      <h2>Data</h2>
+      <span class="hint" id="dataHint">The tracker's own tables. Edits show in the tracker straight away.</span>
+    </div>
+    <div class="banner" id="liveNote" hidden="">
+      <p>You're viewing live data from OneDrive, which can't be edited here. Copy it into the built-in tables to edit it and save it as a file.</p>
+      <button class="btn primary" id="copyLiveBtn" type="button">Copy OneDrive data and edit</button>
+    </div>
+    <div class="toolbar">
+      <div class="dtabs" role="tablist" id="dTabs"></div>
+    </div>
+    <div class="tableScroll"><table class="etable" id="eTable"></table></div>
+    <div class="toolbar" id="eTools">
+      <button class="btn" type="button" id="addRowBtn">+ Add row</button>
+      <button class="btn" type="button" id="pasteBtn" aria-expanded="false">Paste from Excel</button>
+      <button class="btn" type="button" id="copyBtn">Copy for Excel</button>
+      <button class="btn" type="button" id="importBtn">Import Excel file</button>
+      <input type="file" id="importFile" accept=".xlsx,.xlsm,.xls,.csv" hidden="">
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="resetBtn">Discard edits</button>
+      <button class="btn primary" type="button" id="saveBtn">Save as HTML file</button>
+    </div>
+    <div class="pastebox" id="pasteBox" hidden="">
+      <label for="pasteArea" class="note">Copy rows in Excel (with or without the header row) and paste them here.</label>
+      <textarea id="pasteArea" spellcheck="false" placeholder="Paste rows here"></textarea>
+      <div class="toolbar">
+        <button class="btn primary" type="button" id="pasteReplace">Replace rows</button>
+        <button class="btn" type="button" id="pasteAppend">Add to existing rows</button>
+        <button class="btn" type="button" id="pasteCancel">Cancel</button>
+      </div>
+    </div>
+    <p class="note" id="eNote" role="status"></p>
+    <div id="eLists" hidden=""></div>
+  </section>
+</div>
+
+<!-- Built-in data: the tracker's own tables. Edited in the page and written back by "Save as HTML file". -->
+<script type="application/json" id="e2e-data">{"savedAt":"2026-11-03T11:40:50.334Z","sheets":{"system":[["Title","Flow"],["System 1","Flow 1"],["System 2","Flow 2"],["System 3","Flow 3"],["System 4","Flow 4"],["System 5","Flow 5"]],"flow":[["Title","Dependant"],["Flow 1","Start"],["Flow 2","Flow 1, Flow 4"],["Flow 3","Flow 2, Flow 5"],["Flow 4","Start"],["Flow 5","Flow 2"]],"feature":[["Title","Flow","Status"],["Feature 1","Flow 1","OK"],["Feature 2","Flow 1","OK"],["Feature 3","Flow 2","OK"],["Feature 4","Flow 2","Testing"],["Feature 5","Flow 3","Implemented"],["Feature 6","Flow 3","Testing"],["Feature 7","Flow 3","New"],["Feature 8","Flow 3","New"],["Feature 9","Flow 1","Implemented"],["Feature 10","Flow 1","Testing"],["Feature 11","Flow 4","New"],["Feature 12","Flow 5","OK"],["Feature 13","Flow 5","New"]],"defects":[["Title","Feature","Category","Status"],["Defect 1","Feature 1","4-Low","Closed"],["Defect 2","Feature 1","3-Medium","Closed"],["Defect 3","Feature 1","3-Medium","Rejected"],["Defect 4","Feature 1","2-High","Closed"],["Defect 5","Feature 6","4-Low","New"],["Defect 6","Feature 6","3-Medium","Closed"],["Defect 7","Feature 6","3-Medium","Closed"],["Defect 8","Feature 4","2-High","OK"],["Defect 9","Feature 4","2-High","Testing"],["Defect 10","Feature 10","1-Critical","Implemented"]]}}</script>
+
+<script id="e2e-app">
+(() => {
+  const SERVER = "Microsoft 365";
+  const TOOL = "read_resource";
+  const DEFAULT_SRC = { driveId: "267E4B7D2ECAE911", itemId: "267E4B7D2ECAE911!s25619702286d4c55a8bc9c402a1402f5" };
+  const STORE_KEY = "e2e-flow-src";
+  const LOCAL_KEY = "e2e-local-data";
+  const MODE_KEY = "e2e-source";
+  // Captured before anything renders, so "Save as HTML file" can rebuild a clean copy of this page.
+  const PRISTINE_WRAP = document.querySelector(".wrap").outerHTML;
+  const SHEET_DEFS = [
+    { key: "system", label: "Systems", head: ["Title", "Flow"] },
+    { key: "flow", label: "Flows", head: ["Title", "Dependant"] },
+    { key: "feature", label: "Features", head: ["Title", "Flow", "Status"] },
+    { key: "defects", label: "Defects", head: ["Title", "Feature", "Category", "Status"] },
+  ];
+
+  const STAGES = [
+    { key: "new", label: "New", score: 0, color: "var(--s-new)", ink: "var(--s-new-ink)" },
+    { key: "started", label: "Started", score: 25, color: "var(--s-started)", ink: "var(--s-started-ink)" },
+    { key: "implemented", label: "Implemented", score: 50, color: "var(--s-impl)", ink: "var(--s-impl-ink)" },
+    { key: "testing", label: "Testing", score: 75, color: "var(--s-test)", ink: "var(--s-test-ink)" },
+    { key: "ok", label: "OK", score: 100, color: "var(--s-ok)", ink: "var(--s-ok-ink)" },
+  ];
+  const UNKNOWN = { key: "unknown", label: "Other", score: 0, color: "var(--s-unknown)", ink: "var(--muted)" };
+  const ALIASES = { "not started": "new", "todo": "new", "to do": "new", "open": "new", "in progress": "started", "ongoing": "started",
+    "developed": "implemented", "done dev": "implemented", "in test": "testing", "test": "testing", "testing ongoing": "testing",
+    "done": "ok", "passed": "ok", "pass": "ok", "closed": "ok", "approved": "ok", "accepted": "ok" };
+  const stageOf = (s) => {
+    const k = String(s || "").trim().toLowerCase();
+    const key = STAGES.find(x => x.key === k) ? k : ALIASES[k];
+    return STAGES.find(x => x.key === key) || UNKNOWN;
+  };
+
+  // Defect workflow: open → fix delivered (retest) → resolved, or rejected.
+  const DSTAT = [
+    { key: "new", label: "New", group: "open", color: "var(--s-new)", ink: "var(--s-new-ink)" },
+    { key: "started", label: "Started", group: "open", color: "var(--s-started)", ink: "var(--s-started-ink)" },
+    { key: "implemented", label: "Implemented", group: "retest", color: "var(--s-impl)", ink: "var(--s-impl-ink)" },
+    { key: "testing", label: "Testing", group: "retest", color: "var(--s-test)", ink: "var(--s-test-ink)" },
+    { key: "ok", label: "OK", group: "resolved", color: "var(--s-ok)", ink: "var(--s-ok-ink)" },
+    { key: "closed", label: "Closed", group: "resolved", color: "var(--d-closed)", ink: "var(--s-ok-ink)" },
+    { key: "rejected", label: "Rejected", group: "rejected", color: "var(--d-rej)", ink: "var(--muted)" },
+  ];
+  const D_ALIASES = { "open": "new", "reopened": "started", "re-opened": "started", "in progress": "started", "assigned": "started", "analysis": "started",
+    "fixed": "implemented", "resolved": "implemented", "ready for test": "implemented", "ready for retest": "implemented", "in test": "testing", "retest": "testing", "retesting": "testing",
+    "done": "ok", "verified": "ok", "passed": "ok", "pass": "ok", "cancelled": "rejected", "canceled": "rejected", "duplicate": "rejected", "not a defect": "rejected", "won't fix": "rejected", "wont fix": "rejected" };
+  const D_UNKNOWN = { key: "other", label: "Other", group: "open", color: "var(--s-unknown)", ink: "var(--muted)" };
+  const dstatOf = (s) => { const k = String(s || "").trim().toLowerCase(); const key = DSTAT.find(x => x.key === k) ? k : D_ALIASES[k]; return DSTAT.find(x => x.key === key) || D_UNKNOWN; };
+  const CATS = [
+    { key: "critical", label: "Critical", rank: 1, color: "var(--c-crit)", words: ["critical", "blocker", "showstopper"] },
+    { key: "high", label: "High", rank: 2, color: "var(--c-high)", words: ["high", "major"] },
+    { key: "medium", label: "Medium", rank: 3, color: "var(--c-med)", words: ["medium", "moderate", "normal"] },
+    { key: "low", label: "Low", rank: 4, color: "var(--c-low)", words: ["low", "minor", "trivial", "cosmetic"] },
+  ];
+  const C_UNKNOWN = { key: "other", label: "Other", rank: 9, color: "var(--s-unknown)", words: [] };
+  const catOf = (s) => {
+    const t = String(s || "").toLowerCase();
+    const byWord = CATS.find(c => c.words.some(w => t.includes(w)));
+    if (byWord) return byWord;
+    const n = parseInt(t, 10);
+    return CATS.find(c => c.rank === n) || C_UNKNOWN;
+  };
+  const isActive = (d) => d.stat.group === "open" || d.stat.group === "retest";
+  const worstCat = (ds) => ds.reduce((a, d) => (!a || d.cat.rank < a.rank ? d.cat : a), null);
+  const catBadge = (c, raw) => `<span class="cat" style="--c:${c.color}" title="${esc(raw || c.label)}">${esc(c.label)}</span>`;
+  const statPill = (st, raw) => `<span class="dst" style="--c:${st.color};--i:${st.ink}">${esc(raw || st.label)}</span>`;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  const state = { model: null, mode: "empty", filter: new Set(), focus: new Set(), dStat: new Set(), dCat: new Set(), openFeat: new Set(), focusFeat: null, updatedAt: null, src: loadSrc(), loading: false };
+  let mcp = null, unwatch = null, retried = false;
+  state.dataMode = "local";          // "live" (OneDrive through claude.ai) or "local" (built-in tables)
+  state.liveSheets = null;
+  state.tab = "feature";
+  state.local = loadLocal();
+  function readEmbedded() {
+    try { const d = JSON.parse(document.getElementById("e2e-data").textContent); return { savedAt: d.savedAt || "", sheets: normalizeSheets(d.sheets || {}) }; }
+    catch (e) { return { savedAt: "", sheets: normalizeSheets({}) }; }
+  }
+  function normalizeSheets(src) {
+    const out = {};
+    for (const def of SHEET_DEFS) {
+      const rows = Array.isArray(src[def.key]) ? src[def.key].map(r => (Array.isArray(r) ? r : []).map(c => c == null ? "" : String(c))) : [];
+      const head = rows.length && rows[0].some(c => c) ? rows[0] : def.head.slice();
+      out[def.key] = [head, ...rows.slice(1).map(r => head.map((_, i) => r[i] ?? ""))];
+    }
+    return out;
+  }
+  function loadLocal() {
+    const emb = readEmbedded();
+    try {
+      const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null");
+      // Browser edits apply only to the copy of the file they were made in.
+      if (saved && saved.base === emb.savedAt && saved.sheets) return { savedAt: emb.savedAt, sheets: normalizeSheets(saved.sheets), edited: true, editedAt: saved.at };
+    } catch (e) {}
+    return { savedAt: emb.savedAt, sheets: emb.sheets, edited: false };
+  }
+  function persistLocal() {
+    state.local.edited = true; state.local.editedAt = Date.now();
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ base: state.local.savedAt, at: state.local.editedAt, sheets: state.local.sheets })); } catch (e) {}
+  }
+  const getMode = () => { try { return localStorage.getItem(MODE_KEY) || ""; } catch (e) { return ""; } };
+  const setMode = (m) => { try { localStorage.setItem(MODE_KEY, m); } catch (e) {} };
+
+  function loadSrc() {
+    try { const v = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (v && v.driveId && v.itemId) return v; } catch (e) {}
+    return { ...DEFAULT_SRC };
+  }
+  function saveSrc(src) { try { localStorage.setItem(STORE_KEY, JSON.stringify(src)); } catch (e) {} }
+  const uriOf = (src) => `file:///${src.driveId}/${src.itemId}`;
+
+  function parseLink(text) {
+    const t = text.trim();
+    if (!t) return null;
+    try {
+      const u = new URL(t);
+      const p = u.searchParams;
+      const item = p.get("docId") || p.get("resid") || p.get("id");
+      let drive = p.get("driveId") || p.get("cid");
+      if (item && !drive && item.includes("!")) drive = item.split("!")[0];
+      if (item && drive) return { driveId: drive, itemId: item };
+    } catch (e) {}
+    const m = t.match(/^file:\/\/\/([^/]+)\/(.+)$/);
+    if (m) return { driveId: m[1], itemId: m[2] };
+    return null;
+  }
+
+  // ---------- parsing the connector's workbook text ----------
+  // The connector returns either "## Sheet: Name" sections with tab-separated rows,
+  // or a compact layout without sheet names (one sheet per line, cells and rows run together).
+  // Both are handled; sheets without names are identified by their header row.
+  function parseWorkbookText(text) {
+    const t = String(text || "");
+    if (/^##\s*Sheet:/m.test(t)) return parseSectioned(t);
+    return parseCompact(t);
+  }
+  const HEADER_WORDS = new Set(["title", "name", "id", "flow", "flows", "system", "systems", "status", "state", "feature", "features", "category", "severity", "priority",
+    "dependant", "dependent", "depends on", "dependency", "dependencies", "predecessor", "predecessors", "defect", "owner", "assignee", "comment", "comments", "description"]);
+  function sheetKind(head) {
+    const h = head.map(x => x.toLowerCase());
+    const has = (...w) => w.some(x => h.includes(x));
+    if (has("dependant", "dependent", "depends on", "dependency", "dependencies", "predecessor", "predecessors")) return "flow";
+    if (has("category", "severity") || (has("feature", "features") && has("status", "state"))) return "defects";
+    if (has("status", "state") && has("flow", "flows")) return "feature";
+    if (has("flow", "flows")) return "system";
+    return null;
+  }
+  function parseCompact(t) {
+    const sheets = {};
+    let cur = null, width = 0;
+    for (const line of t.split(/\r?\n/)) {
+      if (!line.trim() || /^(workbook:|worksheets|\d+\.\s|formulas|\[)/i.test(line.trim())) continue;
+      const cells = line.split(/\t| {2,}/).map(c => c.trim()).filter(c => c !== "");
+      if (!cells.length) continue;
+      let n = 0;
+      while (n < cells.length && HEADER_WORDS.has(cells[n].toLowerCase())) n++;
+      if (n >= 2 && cells[0].toLowerCase() === "title" || (n >= 2 && sheetKind(cells.slice(0, n)))) {
+        const head = cells.slice(0, n);
+        const kind = sheetKind(head) || ("sheet" + Object.keys(sheets).length);
+        cur = [head]; width = n; sheets[kind] = cur;
+        for (let i = n; i + width <= cells.length; i += width) cur.push(cells.slice(i, i + width));
+        const rest = (cells.length - n) % width;
+        if (rest) cur.push([...cells.slice(cells.length - rest), ...Array(width - rest).fill("")]);
+      } else if (cur) {
+        for (let i = 0; i < cells.length; i += width) cur.push(cells.slice(i, i + width));
+      }
+    }
+    return sheets;
+  }
+  function parseSectioned(text) {
+    const sheets = {};
+    let cur = null;
+    for (const raw of String(text).split(/\r?\n/)) {
+      const m = raw.match(/^##\s*Sheet:\s*(.+?)\s+[—–-]\s+\d/) || raw.match(/^##\s*Sheet:\s*(.+?)\s*$/);
+      if (m) { cur = []; sheets[m[1].trim().toLowerCase()] = cur; continue; }
+      if (!cur) continue;
+      const t = raw.trim();
+      if (!t) continue;
+      if (t.startsWith("#") || /^formulas\b/i.test(t)) { cur = null; continue; }
+      if (t.startsWith("[")) continue;
+      cur.push(raw.split("\t").map(c => c.trim()));
+    }
+    for (const [name, rows] of Object.entries({ ...sheets })) {
+      const kind = rows[0] && sheetKind(rows[0]);
+      if (kind && !sheets[kind]) sheets[kind] = rows;
+    }
+    return sheets;
+  }
+  function records(rows) {
+    if (!rows || rows.length < 2) return [];
+    const head = rows[0].map(h => h.toLowerCase());
+    return rows.slice(1).filter(r => r.some(c => c)).map(r => {
+      const o = {}; head.forEach((h, i) => { o[h] = r[i] ?? ""; }); return o;
+    });
+  }
+  const pick = (o, names) => { for (const n of names) if (o[n] != null && o[n] !== "") return o[n]; return ""; };
+  const findSheet = (sheets, names) => { for (const n of names) if (sheets[n]) return sheets[n]; return null; };
+
+  function buildModel(sheets) {
+    const feaRows = records(findSheet(sheets, ["feature", "features"]));
+    if (!feaRows.length) throw new Error('The workbook has no "Feature" sheet with rows (columns Title, Flow, Status).');
+    const flowRows = records(findSheet(sheets, ["flow", "flows"]));
+    const sysRows = records(findSheet(sheets, ["system", "systems"]));
+    const flows = new Map();
+    const ensure = (name) => {
+      const k = name || "Unassigned";
+      if (!flows.has(k)) flows.set(k, { name: k, dep: "", deps: [], systems: [], features: [], idx: flows.size });
+      return flows.get(k);
+    };
+    for (const r of flowRows) { const f = ensure(pick(r, ["title", "name", "flow"])); f.dep = pick(r, ["dependant", "dependent", "depends on", "dependency", "dependencies", "predecessor", "predecessors"]);
+      f.deps = f.dep.split(/\s*[,;\n]\s*/).map(x => x.trim()).filter(x => x && x.toLowerCase() !== "start"); }
+    const systems = new Map();
+    for (const r of sysRows) {
+      const name = pick(r, ["title", "name", "system"]); if (!name) continue;
+      const f = ensure(pick(r, ["flow"]));
+      if (!f.systems.includes(name)) f.systems.push(name);
+      if (!systems.has(name)) systems.set(name, { name, flows: [] });
+      systems.get(name).flows.push(f.name);
+    }
+    const hasSysCol = feaRows.some(r => pick(r, ["system"]));
+    const features = feaRows.map(r => {
+      const f = ensure(pick(r, ["flow"]));
+      const statusRaw = pick(r, ["status", "state"]);
+      const feat = { title: pick(r, ["title", "name", "feature"]) || "(untitled)", flow: f.name, statusRaw: statusRaw || "—", stage: stageOf(statusRaw), system: pick(r, ["system"]) };
+      if (feat.system && !systems.has(feat.system)) { systems.set(feat.system, { name: feat.system, flows: [f.name] }); }
+      if (feat.system && !f.systems.includes(feat.system)) f.systems.push(feat.system);
+      f.features.push(feat);
+      return feat;
+    });
+    // dependency depth
+    // A flow that branches off one flow and feeds back into that flow's own successors
+    // runs on the same production line: place it in the same column, directly above it.
+    const dependents = new Map();
+    for (const f of flows.values()) for (const n of f.deps) if (flows.has(n)) { if (!dependents.has(n)) dependents.set(n, []); dependents.get(n).push(f.name); }
+    for (const f of flows.values()) {
+      const known = f.deps.filter(n => flows.has(n));
+      if (known.length !== 1) continue;
+      const kids = dependents.get(f.name) || [];
+      const sib = (dependents.get(known[0]) || []).filter(n => n !== f.name);
+      if (kids.length && kids.every(k => sib.includes(k))) f.attach = known[0];
+    }
+    const memo = new Map();
+    const depth = (f, seen = new Set()) => {
+      if (memo.has(f.name)) return memo.get(f.name);
+      if (seen.has(f.name)) return 0; // dependency loop guard
+      const next = new Set([...seen, f.name]);
+      const known = f.deps.filter(n => flows.has(n));
+      const d = f.attach ? depth(flows.get(f.attach), next) : known.length ? Math.max(...known.map(n => depth(flows.get(n), next))) + 1 : 0;
+      memo.set(f.name, d); return d;
+    };
+    const flowList = [...flows.values()];
+    flowList.forEach(f => { f.depth = depth(f); f.progress = avg(f.features); f.counts = counts(f.features); });
+    const anchorIdx = (f) => { let a = f, guard = 0; while (a.attach && flows.has(a.attach) && guard++ < 20) a = flows.get(a.attach); return a.idx; };
+    flowList.sort((a, b) => a.depth - b.depth || anchorIdx(a) - anchorIdx(b) || (b.attach ? 1 : 0) - (a.attach ? 1 : 0) || a.idx - b.idx);
+    const sysList = [...systems.values()].map(s => {
+      const feats = hasSysCol ? features.filter(x => x.system === s.name) : features.filter(x => s.flows.includes(x.flow));
+      return { ...s, features: feats, progress: avg(feats), counts: counts(feats), depth: Math.min(...s.flows.map(n => flows.get(n)?.depth ?? 0)) };
+    });
+    // defects, traced to features by title
+    const defRows = records(findSheet(sheets, ["defects", "defect", "bugs", "bug"]));
+    const featByName = new Map(features.map(x => [x.title.toLowerCase(), x]));
+    features.forEach(x => { x.defects = []; });
+    const defects = defRows.map(r => {
+      const featureName = pick(r, ["feature", "features"]);
+      const feature = featByName.get(featureName.toLowerCase()) || null;
+      const catRaw = pick(r, ["category", "severity", "priority"]);
+      const statusRaw = pick(r, ["status", "state"]);
+      const d = { title: pick(r, ["title", "name", "defect", "id"]) || "(untitled)", featureName, feature, catRaw, cat: catOf(catRaw), statusRaw: statusRaw || "—", stat: dstatOf(statusRaw) };
+      if (feature) feature.defects.push(d);
+      return d;
+    });
+    const flowOf = new Map(flowList.map(f => [f.name, f]));
+    flowList.forEach(f => { f.defects = f.features.flatMap(x => x.defects); });
+    sysList.forEach(sy => { sy.defects = sy.features.flatMap(x => x.defects); });
+    defects.forEach(d => { d.flow = d.feature ? flowOf.get(d.feature.flow) : null; d.systems = d.feature ? sysList.filter(sy => sy.features.includes(d.feature)).map(sy => sy.name) : []; });
+    return { flows: flowList, systems: sysList, features, overall: avg(features), hasSysCol, defects, hasDefects: defRows.length > 0 || !!findSheet(sheets, ["defects", "defect", "bugs", "bug"]) };
+  }
+  function avg(feats) { return feats.length ? feats.reduce((s, f) => s + f.stage.score, 0) / feats.length : null; }
+  function counts(feats) { const c = {}; for (const f of feats) c[f.stage.key] = (c[f.stage.key] || 0) + 1; return c; }
+  const fmtPct = (v) => v == null ? "–" : Math.round(v) + "%";
+  // Progress colour bands: 100 green · 75–99 blue · 50–74 yellow · 25–49 orange · 0–24 red.
+  const pctBand = (v) => v == null ? null : v >= 100 ? "100" : v >= 75 ? "75" : v >= 50 ? "50" : v >= 25 ? "25" : "0";
+  const pctInk = (v) => { const b = pctBand(v); return b ? `color:var(--p-${b}-ink)` : "color:var(--muted)"; };
+  const pctFill = (v) => { const b = pctBand(v); return b ? `var(--p-${b})` : "var(--s-unknown)"; };
+
+  // ---------- rendering ----------
+  function stagesInUse() {
+    const used = new Set(state.model.features.map(f => f.stage.key));
+    return [...STAGES, UNKNOWN].filter(s => s.key !== "unknown" || used.has("unknown"));
+  }
+  const passes = (feat) => (!state.filter.size || state.filter.has(feat.stage.key)) && (!state.focus.size || !state.model.hasSysCol || state.focus.has(feat.system) || !feat.system);
+  const isBehind = (p) => p != null && state.model.overall != null && p < state.model.overall - 0.5;
+
+  function render() {
+    const m = state.model; if (!m) return;
+    renderSummary(m); renderMap(m); renderRank(m); renderTable(m); renderDefects(m);
+    const btn = document.getElementById("clearAll");
+    const parts = [state.focus.size && (state.focus.size === 1 ? `System: ${[...state.focus][0]}` : `${state.focus.size} systems`), state.filter.size && `${state.filter.size} status`, (state.dStat.size || state.dCat.size) && "defect filter", state.focusFeat && `Feature: ${state.focusFeat}`].filter(Boolean);
+    btn.hidden = !parts.length;
+    btn.textContent = parts.length ? `Clear filters (${parts.join(" · ")}) ✕` : "";
+  }
+
+  function renderSummary(m) {
+    const scored = m.flows.filter(f => f.progress != null);
+    const weakest = scored.reduce((a, b) => (a && a.progress <= b.progress ? a : b), null);
+    const okCount = m.features.filter(f => f.stage.key === "ok").length;
+    const behind = m.flows.filter(f => isBehind(f.progress));
+    const total = m.features.length;
+    const c = counts(m.features);
+    const segs = stagesInUse().filter(s => c[s.key]).map(s => `<span style="width:${(c[s.key] / total) * 100}%;background:${s.color}" title="${esc(s.label)}: ${c[s.key]}"></span>`).join("");
+    const chips = stagesInUse().map(s => {
+      const on = state.filter.has(s.key);
+      const off = state.filter.size && !on;
+      return `<button type="button" class="chip${off ? " off" : ""}" data-stage="${s.key}" aria-pressed="${on}"><span class="sw" style="background:${s.color}"></span>${esc(s.label)} <span class="num">${c[s.key] || 0}</span></button>`;
+    }).join("");
+    const act = m.defects.filter(isActive);
+    const sev = act.filter(d => d.cat.rank <= 2).length;
+    const retest = act.filter(d => d.stat.group === "retest").length;
+    const okWithDefects = m.features.filter(f => f.stage.key === "ok" && f.defects.some(isActive)).length;
+    $("summary").classList.toggle("has-d", m.hasDefects);
+    $("summary").innerHTML = `
+      <div class="kpi"><span class="eyebrow">E2E readiness</span><span class="v" style="${pctInk(weakest?.progress)}">${fmtPct(weakest?.progress)}</span>
+        <span class="sub">${weakest ? `Limited by the weakest step: <b>${esc(weakest.name)}</b>` : "No scored steps"}</span></div>
+      <div class="kpi"><span class="eyebrow">Average progress</span><span class="v" style="${pctInk(m.overall)}">${fmtPct(m.overall)}</span><span class="sub">Across ${total} feature${total === 1 ? "" : "s"}</span></div>
+      <div class="kpi"><span class="eyebrow">Features OK</span><span class="v">${okCount}<span style="color:var(--muted);font-size:1rem"> / ${total}</span></span><span class="sub">${total - okCount} still open${okWithDefects ? ` · <span style="color:var(--warn)">${okWithDefects} OK with open defects</span>` : ""}</span></div>
+      <div class="kpi"><span class="eyebrow">Steps behind</span><span class="v${behind.length ? " bad" : ""}">${behind.length}<span style="color:var(--muted);font-size:1rem"> / ${m.flows.length}</span></span>
+        <span class="sub">${behind.length ? "Below the E2E average: " + behind.map(f => esc(f.name)).join(", ") : "All steps at or above average"}</span></div>
+      ${m.hasDefects ? `<div class="kpi"><span class="eyebrow">Open defects</span><span class="v${sev ? " bad" : ""}">${act.length}<span style="color:var(--muted);font-size:1rem"> / ${m.defects.length}</span></span>
+        <span class="sub">${sev ? `<span style="color:var(--warn)">${sev} Critical/High</span> · ` : ""}${retest} awaiting retest</span></div>` : ""}
+      <div class="dist">
+        <div class="bar" role="img" aria-label="Status distribution">${segs}</div>
+        <div class="legend">${chips}${state.filter.size ? `<button type="button" class="btn" data-clear="1">Clear filter</button>` : ""}</div>
+        <span class="hint">Score per feature: New 0 · Started 25 · Implemented 50 · Testing 75 · OK 100. A step's progress is the average of its features.</span>
+      </div>`;
+  }
+
+  function ladder(stage) {
+    const idx = STAGES.indexOf(stage);
+    return `<span class="ladder" aria-hidden="true">${STAGES.map((s, i) => `<i style="${i <= idx ? `background:${stage.color};border-color:${stage.color}` : ""}"></i>`).join("")}</span>`;
+  }
+
+  function renderMap(m) {
+    const byDepth = new Map();
+    for (const f of m.flows) { if (!byDepth.has(f.depth)) byDepth.set(f.depth, []); byDepth.get(f.depth).push(f); }
+    const depths = [...byDepth.keys()].sort((a, b) => a - b);
+    const cols = depths.map(d => `<div class="col">${byDepth.get(d).map(f => card(f, d)).join("")}</div>`);
+    $("map").innerHTML = `<span class="start" data-node="__start">Start</span><span class="gapc"></span>` + cols.join(`<span class="gapc"></span>`) + `<svg class="links" id="links" aria-hidden="true"></svg>`;
+    requestAnimationFrame(drawLinks);
+  }
+
+  // Draw one arrow per dependency: from each predecessor card (or Start) to the dependent card.
+  function drawLinks() {
+    const map = $("map"), svg = $("links"), m = state.model;
+    if (!map || !svg || !m) return;
+    const box = map.getBoundingClientRect();
+    const w = map.scrollWidth, h = map.scrollHeight;
+    svg.setAttribute("width", w); svg.setAttribute("height", h); svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    const node = (name) => map.querySelector(`[data-node="${CSS.escape(name)}"]`);
+    const rect = (el) => { const r = el.getBoundingClientRect(); return { l: r.left - box.left, r: r.right - box.left, t: r.top - box.top, b: r.bottom - box.top, cx: r.left - box.left + r.width / 2, cy: r.top - box.top + r.height / 2 }; };
+    const vertical = getComputedStyle(map).flexDirection === "column";
+    const focusFlows = new Set(m.flows.filter(f => f.systems.some(x => state.focus.has(x))).map(f => f.name));
+    const edges = [];
+    for (const f of m.flows) {
+      const srcs = f.deps.filter(n => m.flows.some(x => x.name === n));
+      (srcs.length ? srcs : ["__start"]).forEach(src => edges.push([src, f.name]));
+    }
+    let lane = 0, topLane = 0;
+    const allCards = [...map.querySelectorAll("[data-node]")].map(rect);
+    const cardsBetween = (A, B) => allCards.some(c => c.l > A.r + 1 && c.r < B.l - 1);
+    const out = edges.map(([a, b]) => {
+      const ea = node(a), eb = node(b); if (!ea || !eb) return "";
+      const A = rect(ea), B = rect(eb);
+      const hot = focusFlows.has(a) || focusFlows.has(b);
+      let d, hx, hy, ang;
+      const skips = !vertical && cardsBetween(A, B);
+      const sameCol = !vertical && A.l < B.r && B.l < A.r;
+      let head = null;
+      if (sameCol) {
+        // Same column: straight vertical arrow between the two boxes.
+        const x = Math.max(A.l, B.l) + Math.min(A.r - A.l, B.r - B.l) / 2;
+        const up = B.b <= A.t;
+        const y1 = up ? A.t : A.b, y2 = up ? B.b + 7 : B.t - 7, tip = up ? B.b : B.t;
+        d = `M${x},${y1} V${y2}`;
+        head = `<path class="head${hot ? " hot" : ""}" d="M${x - 5},${y2} L${x},${tip} L${x + 5},${y2} Z"></path>`;
+      } else if (!vertical && skips) {
+        // Edge jumps over a column: route it above the cards in its own lane.
+        const x1 = A.r, y1 = A.cy, x2 = B.l - 7, y2 = B.cy, ly = 6 + (topLane++ % 4) * 7, r = 14;
+        const xa = x1 + 18, xb = x2 - 18;
+        d = `M${x1},${y1} H${xa - r} Q${xa},${y1} ${xa},${y1 - r} V${ly + r} Q${xa},${ly} ${xa + r},${ly} H${xb - r} Q${xb},${ly} ${xb},${ly + r} V${y2 - r} Q${xb},${y2} ${xb + r},${y2} H${x2}`;
+        hx = x2; hy = y2; ang = 0;
+      } else if (!vertical) {
+        const x1 = A.r, y1 = A.cy, x2 = B.l - 7, y2 = B.cy;
+        const dx = Math.max(24, (x2 - x1) / 2);
+        d = `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+        hx = x2; hy = y2; ang = 0;
+      } else {
+        const x = 4 + (lane++ % 4) * 4;
+        const y1 = A.cy, y2 = B.cy, x2 = B.l - 7;
+        d = `M${A.l},${y1} H${x} V${y2} H${x2}`;
+        hx = x2; hy = y2; ang = 0;
+      }
+      head = head || `<path class="head${hot ? " hot" : ""}" d="M${hx},${hy - 5} L${hx + 7},${hy} L${hx},${hy + 5} Z"></path>`;
+      return `<path class="edge${hot ? " hot" : ""}" d="${d}"></path>${head}`;
+    }).join("");
+    svg.innerHTML = out;
+  }
+  window.addEventListener("resize", () => requestAnimationFrame(drawLinks));
+  if (window.ResizeObserver) new ResizeObserver(() => requestAnimationFrame(drawLinks)).observe(document.body);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => drawLinks());
+  function card(f, d) {
+    const focused = state.focus.size > 0 && f.systems.some(x => state.focus.has(x));
+    const dim = state.focus.size > 0 && !focused;
+    const behind = isBehind(f.progress);
+    const total = f.features.length;
+    const segs = stagesInUse().filter(s => f.counts[s.key]).map(s => `<span style="width:${(f.counts[s.key] / total) * 100}%;background:${s.color}"></span>`).join("");
+    const feats = f.features.map(x => {
+      const show = passes(x);
+      const ds = [...x.defects].sort((a, b) => a.cat.rank - b.cat.rank);
+      const act = ds.filter(isActive);
+      const wc = worstCat(act);
+      const open = state.openFeat.has(x.title);
+      const sq = ds.map(d => `<span class="dsq${d.stat.group === "resolved" ? " done" : d.stat.group === "rejected" ? " rej" : ""}" style="--c:${d.cat.color}" title="${esc(d.title)} · ${esc(d.cat.label)} · ${esc(d.statusRaw)}"></span>`).join("");
+      const dsum = ds.length ? `<span class="dsqs">${sq}</span><span class="dcount" style="color:${wc ? wc.color : "var(--muted)"}">${act.length ? `${act.length} open defect${act.length === 1 ? "" : "s"}` : "defects resolved"}</span>` : "";
+      const flag = x.stage.key === "ok" && act.length ? `<span class="flag">OK with open defects</span>` : "";
+      const list = open && ds.length ? `<ul class="dlist">${ds.map(d => `<li>${catBadge(d.cat, d.catRaw)}<span class="dt${d.stat.group === "rejected" ? " struck" : ""}">${esc(d.title)}</span>${statPill(d.stat, d.statusRaw)}</li>`).join("")}</ul>` : "";
+      return `<li class="feat${show ? "" : " dim"}${state.focusFeat === x.title ? " hl" : ""}" data-feat="${esc(x.title)}" ${ds.length ? `aria-expanded="${open}" tabindex="0"` : ""}><span class="name">${esc(x.title)}${state.model.hasSysCol && x.system ? ` <span style="color:var(--muted);font-size:.75rem">· ${esc(x.system)}</span>` : ""}</span>
+        <span class="st" style="color:${x.stage.ink}">${esc(x.statusRaw)}</span>${ladder(x.stage)}${dsum || flag ? `<span class="sub2">${dsum}${flag}</span>` : ""}${list}</li>`;
+    }).join("");
+    const fAct = f.defects.filter(isActive);
+    const fWc = worstCat(fAct);
+    const tag = (f.progress === 100 ? `<span class="tag good">Ready</span>` : behind ? `<span class="tag warn">Behind</span>` : "")
+      + (fAct.length ? `<span class="tag dtag" style="--c:${fWc.color};--i:${fWc.color}">${fAct.length} open defect${fAct.length === 1 ? "" : "s"}</span>` : "");
+    return `<article data-node="${esc(f.name)}" class="card${behind ? " behind" : ""}${dim ? " dim" : ""}${focused ? " focus" : ""}">
+      <div class="card-top">
+        <div class="meta"><span class="eyebrow">Step ${d + 1}</span>${f.deps.length ? `<span>after ${f.deps.map(n => esc(n)).join(" + ")}</span>` : ""}${tag}</div>
+        <div class="card-title"><h3>${esc(f.name)}</h3><span class="pct" style="${pctInk(f.progress)}">${fmtPct(f.progress)}</span></div>
+        <div class="bar">${segs}</div>
+        <div class="systems">${f.systems.length ? f.systems.map(s => `<button type="button" class="sys" data-sys="${esc(s)}" aria-pressed="${state.focus.has(s)}">${esc(s)}</button>`).join("") : `<span class="hint">No system mapped</span>`}</div>
+      </div>
+      ${total ? `<ul class="feats">${feats}</ul>` : `<div class="empty-feats">No features on this step yet</div>`}
+    </article>`;
+  }
+
+  function renderRank(m) {
+    const items = [...m.systems].filter(s => s.progress != null).sort((a, b) => a.progress - b.progress || a.depth - b.depth);
+    const avgPct = m.overall ?? 0;
+    $("rank").innerHTML = items.length ? items.map(s => {
+      const bad = isBehind(s.progress);
+      const open = s.features.filter(f => f.stage.key !== "ok");
+      const lowest = open.reduce((a, b) => (!a || b.stage.score < a.stage.score ? b : a), null);
+      const sAct = (s.defects || []).filter(isActive);
+      const sWc = worstCat(sAct);
+      const why = (open.length ? `${open.length} of ${s.features.length} open${lowest ? ` · lowest: ${esc(lowest.title)} (${esc(lowest.statusRaw)})` : ""}` : "All features OK")
+        + (sAct.length ? ` · <span style="color:${sWc.color};font-weight:600">${sAct.length} open defect${sAct.length === 1 ? "" : "s"} (worst ${esc(sWc.label)})</span>` : "");
+      return `<li data-sys="${esc(s.name)}" class="${state.focus.has(s.name) ? "sel" : ""}" tabindex="0"><span class="who">${esc(s.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem">· ${esc(s.flows.join(", "))}</span></span>
+        <span class="num" style="${pctInk(s.progress)};font-weight:600">${fmtPct(s.progress)}</span>
+        <span class="track"><b style="width:${s.progress}%;background:${pctFill(s.progress)}"></b><span class="avg" style="left:${avgPct}%"></span></span>
+        <span class="why">${why}</span></li>`;
+    }).join("") : `<li class="hint">Add a System sheet to rank systems.</li>`;
+  }
+
+  function renderTable(m) {
+    const st = stagesInUse();
+    const rows = [...m.systems].sort((a, b) => a.depth - b.depth);
+    $("sysTable").innerHTML = `<thead><tr><th class="pick"><input type="checkbox" id="sysAll" aria-label="Select all systems" ${rows.length && rows.every(r => state.focus.has(r.name)) ? "checked" : ""}></th><th>System</th><th>Step</th>${st.map(s => `<th class="n" title="${esc(s.label)}">${esc(s.label)}</th>`).join("")}${m.hasDefects ? `<th class="n">Open defects</th>` : ""}<th class="n">Progress</th><th class="mini"></th></tr></thead>
+      <tbody>${rows.length ? rows.map(s => `<tr class="clickable${state.focus.has(s.name) ? " focus" : ""}" data-sys="${esc(s.name)}" tabindex="0" aria-selected="${state.focus.has(s.name)}">
+        <td class="pick"><input type="checkbox" tabindex="-1" aria-label="Select ${esc(s.name)}" ${state.focus.has(s.name) ? "checked" : ""}></td>
+        <td style="white-space:nowrap"><b>${esc(s.name)}</b></td><td style="white-space:nowrap">${esc(s.flows.join(", "))}</td>
+        ${st.map(x => `<td class="n${s.counts[x.key] ? "" : " zero"}">${s.counts[x.key] || 0}</td>`).join("")}
+        ${m.hasDefects ? (() => { const a = s.defects.filter(isActive); const w = worstCat(a); return `<td class="n${a.length ? "" : " zero"}" style="${w ? `color:${w.color};font-weight:600` : ""}">${a.length}</td>`; })() : ""}
+        <td class="n" style="${pctInk(s.progress)};font-weight:600">${fmtPct(s.progress)}</td>
+        <td class="mini"><div class="bar" style="height:6px">${st.filter(x => s.counts[x.key]).map(x => `<span style="width:${(s.counts[x.key] / s.features.length) * 100}%;background:${x.color}"></span>`).join("")}</div></td>
+      </tr>`).join("") : `<tr><td colspan="${st.length + 6}" class="hint">No System sheet found in the workbook.</td></tr>`}</tbody>`;
+  }
+
+  function renderDefects(m) {
+    $("defectSec").hidden = !m.hasDefects;
+    if (!m.hasDefects) return;
+    const ds = m.defects;
+    const statsUsed = [...DSTAT, D_UNKNOWN].filter(s => (s.key !== "other" && s.key !== "started") || ds.some(d => d.stat.key === s.key));
+    const catsUsed = [...CATS, C_UNKNOWN].filter(c => c.key !== "other" || ds.some(d => d.cat.key === "other"));
+    const n = (fn) => ds.filter(fn).length;
+    const act = ds.filter(isActive);
+    const unlinked = n(d => !d.feature);
+    $("dKpis").innerHTML = [
+      ["Not started", n(d => d.stat.group === "open"), "New or in progress, no fix yet", false],
+      ["Critical / High open", act.filter(d => d.cat.rank <= 2).length, act.filter(d => d.cat.rank === 1).length + " critical", act.some(d => d.cat.rank <= 2)],
+      ["Awaiting retest", n(d => d.stat.group === "retest"), "Implemented or Testing", false],
+      ["Resolved", n(d => d.stat.group === "resolved"), "OK or Closed", false],
+      ["Rejected", n(d => d.stat.group === "rejected"), unlinked ? `<span style="color:var(--warn)">${unlinked} not linked to a feature</span>` : "All defects linked to features", false],
+    ].map(([l, v, sub, bad]) => `<div class="kpi"><span class="eyebrow">${l}</span><span class="v${bad ? " bad" : ""}">${v}</span><span class="sub">${sub}</span></div>`).join("");
+
+    const chip = (kind, o, count, on, any) => `<button type="button" class="chip${any && !on ? " off" : ""}" data-${kind}="${o.key}" aria-pressed="${on}"><span class="sw" style="background:${o.color}"></span>${esc(o.label)} <span class="num">${count}</span></button>`;
+    $("dFilters").innerHTML = `
+      <div class="legend"><span class="lab">Category</span>${catsUsed.map(c => chip("dcat", c, n(d => d.cat.key === c.key), state.dCat.has(c.key), state.dCat.size)).join("")}</div>
+      <div class="legend"><span class="lab">Status</span>${statsUsed.map(s => chip("dstat", s, n(d => d.stat.key === s.key), state.dStat.has(s.key), state.dStat.size)).join("")}
+        ${state.dStat.size || state.dCat.size ? `<button type="button" class="btn" data-dclear="1">Clear filter</button>` : ""}</div>`;
+
+    $("dMatrix").innerHTML = `<thead><tr><th>Category</th>${statsUsed.map(s => `<th class="n" title="${esc(s.label)}"><span class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${s.color}"></span> ${esc(s.label)}</th>`).join("")}<th class="n">Open</th></tr></thead>
+      <tbody>${catsUsed.map(c => `<tr><td>${catBadge(c)}</td>${statsUsed.map(s => { const k = n(d => d.cat.key === c.key && d.stat.key === s.key);
+        return `<td class="n${k ? " hit" : " zero"}" style="${k ? `background:color-mix(in srgb, ${s.color} 24%, transparent)` : ""}">${k}</td>`; }).join("")}
+        <td class="n" style="${act.some(d => d.cat.key === c.key) ? `color:${c.color};font-weight:700` : ""}">${act.filter(d => d.cat.key === c.key).length}</td></tr>`).join("")}</tbody>`;
+
+    const order = { open: 0, retest: 1, resolved: 2, rejected: 3 };
+    const rows = ds.filter(d => (!state.dStat.size || state.dStat.has(d.stat.key)) && (!state.dCat.size || state.dCat.has(d.cat.key)) && (!state.focus.size || d.systems.some(x => state.focus.has(x))))
+      .sort((a, b) => order[a.stat.group] - order[b.stat.group] || a.cat.rank - b.cat.rank || (a.flow?.depth ?? 99) - (b.flow?.depth ?? 99));
+    $("dTable").innerHTML = `<thead><tr><th>Defect</th><th>Category</th><th>Status</th><th>Feature</th><th>Step</th><th>System</th></tr></thead>
+      <tbody>${rows.length ? rows.map(d => `<tr class="${d.feature ? "clickable" : ""}${isActive(d) ? "" : " done"}${state.focusFeat && d.feature && state.focusFeat === d.feature.title ? " focus" : ""}" ${d.feature ? `data-trace="${esc(d.feature.title)}" tabindex="0"` : ""}>
+        <td><span class="${d.stat.group === "rejected" ? "struck" : ""}" style="font-weight:600">${esc(d.title)}</span></td>
+        <td>${catBadge(d.cat, d.catRaw)}</td><td>${statPill(d.stat, d.statusRaw)}</td>
+        <td>${d.feature ? `<span class="ftrace"><span>${esc(d.feature.title)}</span><small style="color:${d.feature.stage.ink}">${esc(d.feature.statusRaw)}</small></span>` : `<span style="color:var(--warn)">${esc(d.featureName || "—")} · not found</span>`}</td>
+        <td>${d.flow ? `Step ${d.flow.depth + 1} · ${esc(d.flow.name)}` : "—"}</td>
+        <td>${d.systems.length ? esc(d.systems.join(", ")) : "—"}</td></tr>`).join("") : `<tr><td colspan="6" class="hint">${ds.length ? "No defects match this filter." : "The Defects sheet has no rows yet."}</td></tr>`}</tbody>`;
+  }
+
+  function traceTo(title) {
+    state.focusFeat = title; state.openFeat.add(title); state.focus.clear();
+    state.filter.clear();
+    render();
+    const el = document.querySelector(`.feat[data-feat="${CSS.escape(title)}"]`);
+    if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center", inline: "center" });
+  }
+
+  // ---------- source + status ----------
+  function setSource(kind, text) {
+    $("srcDot").className = "dot" + (kind === "live" ? " live" : kind === "loading" ? " loading" : "");
+    $("srcText").textContent = text;
+  }
+  function liveLabel() {
+    if (!state.updatedAt) return "Live from OneDrive";
+    const d = new Date(state.updatedAt);
+    return `Live from OneDrive · updated ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  function banner(text, opts = {}) {
+    const b = $("banner");
+    if (!text) { b.hidden = true; return; }
+    b.hidden = false; b.classList.toggle("err", !!opts.error);
+    $("bannerText").innerHTML = text;
+    const btn = $("bannerBtn");
+    btn.hidden = !opts.action; btn.textContent = opts.action || "";
+    btn.onclick = opts.onAction || null;
+  }
+
+  // OneDrive could not be read: fall back to the built-in tables and say why.
+  function showExample(reasonHtml, opts) {
+    if (unwatch && opts && opts.error) { unwatch(); unwatch = null; }
+    useLocal();
+    banner(`${reasonHtml} Showing the built-in data instead.`, opts);
+  }
+
+  function applySheets(sheets) {
+    try { state.model = buildModel(sheets); }
+    catch (e) {
+      state.model = null;
+      $("content").hidden = true; $("placeholder").hidden = false;
+      $("placeholder").textContent = state.dataMode === "local" ? `Nothing to show yet: ${e.message.replace("The workbook has", "the data has")} Add rows under Edit data.` : e.message;
+      return false;
+    }
+    $("placeholder").hidden = true; $("content").hidden = false;
+    render();
+    return true;
+  }
+  function localLabel() {
+    if (state.local.edited) return "Built-in data · edited in this browser, not yet saved to the file";
+    const d = state.local.savedAt ? new Date(state.local.savedAt) : null;
+    return d && !isNaN(d) ? `Built-in data · saved ${d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" })}` : "Built-in data";
+  }
+  function updateChrome() {
+    const live = state.dataMode === "live";
+    $("refreshBtn").hidden = !live;
+    $("settingsBtn").hidden = !mcp;
+    $("liveBtn").hidden = !mcp || live;
+    if (!live) { $("srcDot").className = "dot " + (state.local.edited ? "edited" : "local"); $("srcText").textContent = localLabel(); }
+    renderEditor();
+  }
+  function useLocal() {
+    state.dataMode = "local";
+    if (unwatch) { unwatch(); unwatch = null; }
+    banner(null);
+    applySheets(state.local.sheets);
+    updateChrome();
+  }
+
+  function applyResult(result) {
+    let text = typeof result?.payload === "string" ? result.payload : null;
+    if (!text && Array.isArray(result?.content)) text = result.content.filter(c => c.type === "text").map(c => c.text).join("\n");
+    if (!text && result?.payload && typeof result.payload === "object") text = result.payload.text || result.payload.content || "";
+    if (state.dataMode !== "live") return false;
+    const sheets = parseWorkbookText(text || "");
+    let model;
+    try { model = buildModel(sheets); }
+    catch (e) { showExample(`Your workbook loaded, but it could not be read as a flow: ${esc(e.message)}`, { error: true }); return false; }
+    state.liveSheets = normalizeSheets(sheets);
+    state.model = model; state.mode = "live";
+    $("placeholder").hidden = true;
+    $("content").hidden = false;
+    state.updatedAt = result?.cache?.storedAt || Date.now();
+    $("title").textContent = "E2E Tracker";
+    setSource("live", liveLabel());
+    banner(null);
+    render();
+    updateChrome();
+    return true;
+  }
+
+  function handleError(err, { fromWatch = false } = {}) {
+    const code = err?.code || "upstream_error";
+    if (state.mode === "live" && ["server_unavailable", "upstream_error", "rate_limited"].includes(code)) {
+      setSource("live", liveLabel() + " · refresh failed"); return; // keep last good data
+    }
+    const ask = () => load({ fresh: true });
+    switch (code) {
+      case "server_not_connected":
+        return showExample("Add <b>Microsoft 365</b> in claude.ai Settings → Connectors, then reload this page.", { error: true });
+      case "needs_reauth":
+        return showExample("Your Microsoft 365 sign-in has expired. Reconnect it in claude.ai Settings → Connectors, then reload.", { error: true });
+      case "selection_required":
+        return showExample("You have more than one Microsoft 365 connector. Choose one when claude.ai asks, then reload.", { error: true });
+      case "approval_required": case "not_in_manifest": case "consent_required":
+        return showExample("This page needs your permission to read the workbook from OneDrive.", { action: "Allow OneDrive access", onAction: ask });
+      case "blocked_by_policy":
+        return showExample("Your organization's policy blocks reading OneDrive files from this page.", { error: true });
+      case "tool_error":
+        return showExample(`OneDrive could not open the workbook: ${esc(err.message || "unknown error")}. Check the link under <b>Change workbook</b>.`, { error: true, action: "Try again", onAction: ask });
+      case "not_granted": case "capability_disabled": case "capability_removed":
+        return showExample("This view can't reach your connectors. Open the page on claude.ai while signed in to load your workbook.");
+      default:
+        if (err?.retryable && !retried && !fromWatch) {
+          retried = true;
+          setTimeout(() => load(), (err.retryAfterMs || 1500) + Math.random() * 800);
+          return;
+        }
+        return showExample(`The workbook could not be loaded right now (${esc(code)}).`, { error: true, action: "Try again", onAction: ask });
+    }
+  }
+
+  function startWatch(uri) {
+    if (unwatch) { unwatch(); unwatch = null; }
+    try {
+      unwatch = mcp.watchTool(SERVER, TOOL, { uri }, (ev) => {
+        if (uri !== uriOf(state.src) || state.dataMode !== "live") return;
+        if (ev.type === "data") applyResult(ev.result);
+        else if (ev.type === "error") {
+          const c = ev.error?.code;
+          if (["needs_reauth", "server_not_connected", "blocked_by_policy", "approval_required"].includes(c)) handleError(ev.error, { fromWatch: true });
+          else if (state.mode === "live") setSource("live", liveLabel() + " · auto-refresh paused");
+        }
+      }, { cache: { staleTime: 30000, gcTime: 3600000 }, refetchInterval: 60000 });
+    } catch (e) { /* static experience remains */ }
+  }
+
+  async function load({ fresh = false } = {}) {
+    if (!mcp) return;
+    state.dataMode = "live"; updateChrome();
+    if (state.loading) return;
+    state.loading = true;
+    const uri = uriOf(state.src);
+    setSource("loading", "Loading from OneDrive…");
+    try {
+      const res = await mcp.callTool(SERVER, TOOL, { uri }, { cache: { staleTime: 60000, gcTime: 3600000, refresh: fresh } });
+      if (uri !== uriOf(state.src)) return;
+      retried = false;
+      if (applyResult(res)) startWatch(uri);
+    } catch (err) {
+      handleError(err);
+    } finally {
+      state.loading = false;
+      if (state.dataMode === "local") updateChrome();
+    }
+  }
+
+  // ---------- data editor ----------
+  const FEATURE_STATUSES = ["New", "Started", "Implemented", "Testing", "OK"];
+  const DEFECT_STATUSES = ["New", "Started", "Implemented", "Testing", "OK", "Closed", "Rejected"];
+  const CATEGORIES = ["1-Critical", "2-High", "3-Medium", "4-Low"];
+  function editorSheets() { return state.dataMode === "live" && state.liveSheets ? state.liveSheets : state.local.sheets; }
+  function note(text, kind) { const n = $("eNote"); n.textContent = text || ""; n.className = "note" + (kind ? " " + kind : ""); }
+
+  function cellControl(sheetKey, col, value, r, c, ro) {
+    const h = col.toLowerCase();
+    const attrs = `data-r="${r}" data-c="${c}" aria-label="${esc(col)} row ${r}"${ro ? " disabled" : ""}`;
+    if (h === "status" || h === "state" || h === "category" || h === "severity") {
+      const opts = h === "category" || h === "severity" ? CATEGORIES : sheetKey === "defects" ? DEFECT_STATUSES : FEATURE_STATUSES;
+      const list = opts.includes(value) || !value ? opts : [value, ...opts];
+      const tint = h === "category" || h === "severity" ? catOf(value).color : sheetKey === "defects" ? dstatOf(value).ink : stageOf(value).ink;
+      return `<select ${attrs} style="color:${tint};font-weight:600">${value ? "" : `<option value="" selected></option>`}${list.map(o => `<option${o === value ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    }
+    const dl = (h === "flow" || h === "flows") ? "dl-flows" : (h === "feature" || h === "features") ? "dl-features" : (h === "system") ? "dl-systems" : "";
+    const ph = (h === "dependant" || h === "dependent" || h.startsWith("depend")) ? ' placeholder="Start, or flows separated by commas"' : "";
+    return `<input type="text" value="${esc(value)}" ${attrs}${dl ? ` list="${dl}"` : ""}${ph} autocomplete="off">`;
+  }
+
+  function renderEditor() {
+    const sec = $("dataSec");
+    $("dataBtn").setAttribute("aria-expanded", String(!sec.hidden));
+    if (sec.hidden) return;
+    const live = state.dataMode === "live";
+    const sheets = editorSheets();
+    $("liveNote").hidden = !live;
+    $("eTools").hidden = live;
+    $("pasteBox").hidden = live || $("pasteBox").hidden;
+    $("dTabs").innerHTML = SHEET_DEFS.map(d => `<button type="button" class="dtab" role="tab" data-tab="${d.key}" aria-selected="${state.tab === d.key}">${d.label}<span class="num">${Math.max(0, sheets[d.key].length - 1)}</span></button>`).join("");
+    const rows = sheets[state.tab];
+    const head = rows[0];
+    renderLists();
+    $("eTable").innerHTML = `<thead><tr><th class="rowno">#</th>${head.map(h => `<th>${esc(h)}</th>`).join("")}${live ? "" : `<th class="act"></th>`}</tr></thead>
+      <tbody>${rows.length > 1 ? rows.slice(1).map((r, i) => `<tr><td class="rowno">${i + 1}</td>${head.map((h, c) => `<td>${cellControl(state.tab, h, r[c] ?? "", i + 1, c, live)}</td>`).join("")}${live ? "" : `<td class="act"><button type="button" class="delrow" data-delrow="${i + 1}" aria-label="Delete row ${i + 1}" title="Delete row">✕</button></td>`}</tr>`).join("")
+        : `<tr><td colspan="${head.length + 2}" class="hint">No rows yet. Add a row or paste rows from Excel.</td></tr>`}</tbody>`;
+    $("resetBtn").hidden = !state.local.edited;
+  }
+
+  let rebuildTimer = null;
+  function localChanged({ editor = false, now = false } = {}) {
+    persistLocal();
+    const go = () => { applySheets(state.local.sheets); updateChromeLight(); if (editor) renderEditor(); };
+    clearTimeout(rebuildTimer);
+    if (now || editor) go(); else rebuildTimer = setTimeout(go, 350);
+  }
+  function updateChromeLight() {
+    $("srcDot").className = "dot " + (state.local.edited ? "edited" : "local"); $("srcText").textContent = localLabel();
+    $("resetBtn").hidden = !state.local.edited;
+    document.querySelectorAll("#dTabs .dtab").forEach(b => { const n = b.querySelector(".num"); if (n) n.textContent = Math.max(0, state.local.sheets[b.dataset.tab].length - 1); });
+  }
+
+  function parsePasted(text, head) {
+    const lines = text.replace(/\r/g, "").split("\n");
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    let rows = lines.filter(l => l.trim()).map(l => l.split("\t").map(c => c.trim().replace(/^"(.*)"$/s, "$1")));
+    if (rows.length && rows[0][0] && rows[0][0].toLowerCase() === String(head[0]).toLowerCase()) rows = rows.slice(1);
+    return rows.map(r => head.map((_, i) => r[i] ?? ""));
+  }
+  function toTsv(rows) { return rows.map(r => r.map(c => /[\t\n"]/.test(c) ? `"${String(c).replace(/"/g, '""')}"` : c).join("\t")).join("\n"); }
+
+  function loadSheetJs() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((res, rej) => {
+      const sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      sc.onload = () => window.XLSX ? res(window.XLSX) : rej(new Error("The Excel reader didn't load."));
+      sc.onerror = () => rej(new Error("The Excel reader couldn't be downloaded. Check your internet connection, or paste the rows instead."));
+      document.head.appendChild(sc);
+    });
+  }
+  async function importFile(file) {
+    note("Reading " + file.name + "…");
+    try {
+      const XLSX = await loadSheetJs();
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const found = {};
+      for (const name of wb.SheetNames) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: "" }).map(r => r.map(c => String(c).trim())).filter(r => r.some(c => c));
+        if (!rows.length) continue;
+        const byName = { system: "system", systems: "system", flow: "flow", flows: "flow", feature: "feature", features: "feature", defect: "defects", defects: "defects", bugs: "defects" }[name.trim().toLowerCase()];
+        const kind = byName || sheetKind(rows[0]);
+        if (kind && !found[kind]) found[kind] = rows;
+      }
+      const kinds = Object.keys(found);
+      if (!kinds.length) { note(`${file.name} has no System, Flow, Feature or Defects sheet.`, "err"); return; }
+      state.local.sheets = normalizeSheets({ ...state.local.sheets, ...found });
+      localChanged({ editor: true });
+      note(`Imported ${kinds.map(k => SHEET_DEFS.find(d => d.key === k).label).join(", ")} from ${file.name}.`, "ok");
+    } catch (e) { note(e.message || "That file couldn't be read.", "err"); }
+  }
+
+  function buildStandaloneHtml() {
+    const savedAt = new Date().toISOString();
+    const json = JSON.stringify({ savedAt, sheets: state.local.sheets }).replace(/</g, "\\u003c");
+    const links = [...document.querySelectorAll('link[href*="fonts.googleapis"], link[rel="preconnect"]')].map(l => l.outerHTML).join("\n");
+    const html = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n"
+      + "<title>E2E Tracker</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n" + links + "\n"
+      + "<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>\n"
+      + document.getElementById("e2e-style").outerHTML + "\n</head>\n<body>\n" + PRISTINE_WRAP + "\n\n"
+      + "<!-- Built-in data: the tracker's own tables. Edited in the page and written back by \"Save as HTML file\". -->\n"
+      + "<script type=\"application/json\" id=\"e2e-data\">" + json + "<\/script>\n\n"
+      + document.getElementById("e2e-app").outerHTML + "\n</body>\n</html>\n";
+    return { html, savedAt };
+  }
+  async function saveFile() {
+    const { html, savedAt } = buildStandaloneHtml();
+    const stamp = savedAt.slice(0, 10);
+    const filename = `E2E Tracker ${stamp}.html`;
+    const ns = window.claude && typeof window.claude.use === "function" ? await window.claude.use("downloads").catch(() => null) : null;
+    try {
+      if (ns) await ns.save({ filename, data: html });
+      else {
+        const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }
+      note(`Saved "${filename}" with your data inside. Share that file; it opens in any browser.`, "ok");
+    } catch (e) {
+      const c = e && e.code;
+      note(c === "declined" ? "Save cancelled." : c === "rate_limited" ? "A save is already waiting for your answer." : "This view can't save files. Open the tracker in a browser or on claude.ai to save it.", c === "declined" ? "" : "err");
+    }
+  }
+
+  $("dataBtn").addEventListener("click", () => { $("dataSec").hidden = !$("dataSec").hidden; renderEditor(); if (!$("dataSec").hidden) $("dataSec").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("liveBtn").addEventListener("click", () => { setMode("live"); retried = false; load({ fresh: true }); });
+  $("copyLiveBtn").addEventListener("click", () => {
+    if (state.liveSheets) { state.local.sheets = normalizeSheets(state.liveSheets); persistLocal(); }
+    setMode("local"); useLocal(); note("Copied the OneDrive data into the built-in tables. Edit away, then save it as a file.", "ok");
+  });
+  $("dataSec").addEventListener("click", (e) => {
+    const tab = e.target.closest("[data-tab]");
+    if (tab) { state.tab = tab.dataset.tab; $("pasteBox").hidden = true; renderEditor(); return; }
+    const del = e.target.closest("[data-delrow]");
+    if (del) { state.local.sheets[state.tab].splice(+del.dataset.delrow, 1); localChanged({ editor: true }); note("Row deleted."); return; }
+  });
+  $("dataSec").addEventListener("input", (e) => {
+    const el = e.target; if (!el.matches("[data-r]") || state.dataMode !== "local") return;
+    state.local.sheets[state.tab][+el.dataset.r][+el.dataset.c] = el.value;
+    if (el.tagName === "SELECT") { localChanged({ now: true }); const h = state.local.sheets[state.tab][0][+el.dataset.c].toLowerCase();
+      el.style.color = h === "category" || h === "severity" ? catOf(el.value).color : state.tab === "defects" ? dstatOf(el.value).ink : stageOf(el.value).ink; }
+    else localChanged();
+  });
+  // Suggestion lists for Flow / Feature / System cells; refreshed in place so typing is never interrupted.
+  function renderLists() {
+    const sheets = editorSheets();
+    const titles = (k) => [...new Set(sheets[k].slice(1).map(r => r[0]).filter(Boolean))];
+    $("eLists").innerHTML = ["flow", "feature", "system"].map(k => `<datalist id="dl-${k === "flow" ? "flows" : k === "feature" ? "features" : "systems"}">${titles(k).map(t => `<option value="${esc(t)}">`).join("")}</datalist>`).join("");
+  }
+  $("dataSec").addEventListener("change", (e) => { if (e.target.matches("input[data-r]")) renderLists(); });
+  $("addRowBtn").addEventListener("click", () => {
+    const rows = state.local.sheets[state.tab]; rows.push(rows[0].map(() => ""));
+    localChanged({ editor: true });
+    const el = document.querySelector(`#eTable [data-r="${rows.length - 1}"][data-c="0"]`); if (el) el.focus();
+  });
+  $("pasteBtn").addEventListener("click", () => { const b = $("pasteBox"); b.hidden = !b.hidden; $("pasteBtn").setAttribute("aria-expanded", String(!b.hidden)); if (!b.hidden) $("pasteArea").focus(); });
+  $("pasteCancel").addEventListener("click", () => { $("pasteBox").hidden = true; $("pasteArea").value = ""; $("pasteBtn").setAttribute("aria-expanded", "false"); });
+  const doPaste = (replace) => {
+    const rows = state.local.sheets[state.tab];
+    const got = parsePasted($("pasteArea").value, rows[0]);
+    if (!got.length) { note("There were no rows to paste.", "err"); return; }
+    state.local.sheets[state.tab] = replace ? [rows[0], ...got] : [...rows, ...got];
+    $("pasteArea").value = ""; $("pasteBox").hidden = true; $("pasteBtn").setAttribute("aria-expanded", "false");
+    localChanged({ editor: true });
+    note(`${replace ? "Replaced with" : "Added"} ${got.length} row${got.length === 1 ? "" : "s"}.`, "ok");
+  };
+  $("pasteReplace").addEventListener("click", () => doPaste(true));
+  $("pasteAppend").addEventListener("click", () => doPaste(false));
+  $("copyBtn").addEventListener("click", () => {
+    const tsv = toTsv(editorSheets()[state.tab]);
+    const fallback = () => { $("pasteBox").hidden = false; $("pasteArea").value = tsv; $("pasteArea").select(); note("Press Ctrl+C (Cmd+C on Mac) to copy the selected rows, then paste them into Excel."); };
+    try { navigator.clipboard.writeText(tsv).then(() => note("Copied. Paste into Excel to get the same table.", "ok"), fallback); } catch (e) { fallback(); }
+  });
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; if (f) importFile(f); e.target.value = ""; });
+  $("saveBtn").addEventListener("click", saveFile);
+  let resetArmed = false;
+  $("resetBtn").addEventListener("click", () => {
+    if (!resetArmed) { resetArmed = true; $("resetBtn").textContent = "Click again to discard"; setTimeout(() => { resetArmed = false; $("resetBtn").textContent = "Discard edits"; }, 4000); return; }
+    resetArmed = false; $("resetBtn").textContent = "Discard edits";
+    try { localStorage.removeItem(LOCAL_KEY); } catch (e) {}
+    const emb = readEmbedded(); state.local = { savedAt: emb.savedAt, sheets: emb.sheets, edited: false };
+    applySheets(state.local.sheets); updateChrome(); note("Edits discarded. Showing the data saved in the file.");
+  });
+
+  // ---------- events ----------
+  document.addEventListener("click", (e) => {
+    const stage = e.target.closest("[data-stage]");
+    if (stage) { const k = stage.dataset.stage; state.filter.has(k) ? state.filter.delete(k) : state.filter.add(k); render(); return; }
+    if (e.target.closest("[data-clear]")) { state.filter.clear(); render(); return; }
+    if (e.target.closest("#clearAll")) { clearFilters(); return; }
+    const dc = e.target.closest("[data-dcat]");
+    if (dc) { const k = dc.dataset.dcat; state.dCat.has(k) ? state.dCat.delete(k) : state.dCat.add(k); render(); return; }
+    const dsb = e.target.closest("[data-dstat]");
+    if (dsb) { const k = dsb.dataset.dstat; state.dStat.has(k) ? state.dStat.delete(k) : state.dStat.add(k); render(); return; }
+    if (e.target.closest("[data-dclear]")) { state.dStat.clear(); state.dCat.clear(); render(); return; }
+    const tr = e.target.closest("tr[data-trace]");
+    if (tr) { traceTo(tr.dataset.trace); return; }
+    const fe = e.target.closest(".feat[data-feat]");
+    if (fe && !e.target.closest("[data-sys]")) { const t = fe.dataset.feat; state.openFeat.has(t) ? state.openFeat.delete(t) : state.openFeat.add(t); state.focusFeat = state.focusFeat === t ? null : state.focusFeat; render(); return; }
+    if (e.target.id === "sysAll") { const all = state.model.systems.map(x => x.name); const on = all.every(n => state.focus.has(n)); state.focus = new Set(on ? [] : all); render(); return; }
+    const sys = e.target.closest("[data-sys]");
+    if (sys) { const n = sys.dataset.sys; state.focus.has(n) ? state.focus.delete(n) : state.focus.add(n); render(); return; }
+    // A click on empty page background (not on a card, row, control or text field) clears every active filter.
+    if (!e.target.closest(".card, .feat, tr, button, a, input, label, select, textarea, form, .chip, .banner")) clearFilters();
+  });
+  function clearFilters() {
+    const active = state.filter.size || state.focus.size || state.dStat.size || state.dCat.size || state.focusFeat;
+    if (!active || !state.model) return;
+    state.filter.clear(); state.focus.clear(); state.dStat.clear(); state.dCat.clear(); state.focusFeat = null;
+    render();
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !e.target.closest?.("input, textarea")) { clearFilters(); return; }
+    const row = e.target.closest && (e.target.closest("tr[data-sys]") || e.target.closest("li[data-sys]") || e.target.closest("tr[data-trace]") || e.target.closest(".feat[data-feat][tabindex]"));
+    if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); row.click(); }
+  });
+  $("refreshBtn").addEventListener("click", () => {
+    if (!mcp) return;
+    retried = false; load({ fresh: true });
+  });
+  $("settingsBtn").addEventListener("click", () => {
+    const s = $("settings"); s.hidden = !s.hidden; $("settingsBtn").setAttribute("aria-expanded", String(!s.hidden));
+    if (!s.hidden) { $("wbInput").focus(); $("wbError").textContent = ""; }
+  });
+  $("settings").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const src = parseLink($("wbInput").value);
+    if (!src) { $("wbError").textContent = "That link doesn't include a OneDrive file id. Open the workbook in Excel for the web and copy the full address bar URL."; return; }
+    state.src = src; saveSrc(src); $("settings").hidden = true; $("settingsBtn").setAttribute("aria-expanded", "false");
+    retried = false; load({ fresh: true });
+  });
+  $("resetWb").addEventListener("click", () => {
+    state.src = { ...DEFAULT_SRC }; saveSrc(state.src); $("wbInput").value = ""; $("settings").hidden = true;
+    retried = false; load({ fresh: true });
+  });
+
+  // ---------- boot ----------
+  // Show the built-in data at once; inside claude.ai, switch to live OneDrive data unless the viewer chose the built-in tables.
+  useLocal();
+  const use = window.claude && typeof window.claude.use === "function" ? window.claude.use("mcp") : Promise.resolve(null);
+  use.then((ns) => {
+    mcp = ns;
+    if (!mcp) { updateChrome(); return; }
+    if (getMode() === "local") { updateChrome(); return; }
+    setSource("loading", "Connecting to OneDrive…");
+    load();
+  }).catch(() => updateChrome());
+})();
+</script>
+</body>
+</html>
