@@ -55,3 +55,9 @@ Score per feature: 0 / 25 / 50 / 75 / 100. A step's progress is the average of i
 - A flow's step is one after the latest of the flows it depends on.
 - A flow that depends on exactly one flow and only feeds that flow's own successors runs on the same line: it is placed in the same column, directly above it.
 - Arrows connect the middle of each box's sides; arrows that would cross a column are routed over the top.
+
+## Development
+
+- `node scripts/test.js` runs the smoke tests (headless Chromium via Playwright).
+- `node scripts/build.js` rebuilds `E2E-Tracker.html` from `index.html`.
+- Work follows three phases (Analyse og Design → Implementation → Deploy), described in `.claude/skills/e2e-workflow/SKILL.md`; the running changelog is `CHANGELOG.md`.
